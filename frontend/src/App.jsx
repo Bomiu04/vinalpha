@@ -20,8 +20,9 @@ function App() {
 
         {/* Các trang chúng ta sẽ code tiếp theo (Tạm thời comment lại để không lỗi) */}
         <Route path="/verify-otp" element={<VerifyOTP />} />
-        {/* <Route path="/reset-password" element={<ResetPassword />} /> */}
-
+        {/* <Route path="/reset-password" element={<ResetPasswor
+        d />} /> */}
+          <Route path="/reset-password" element={<ResetPassword />} />
         {/* Bắt lỗi 404: Nếu gõ link bậy bạ, đá về trang Login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
