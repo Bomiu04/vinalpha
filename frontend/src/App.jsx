@@ -1,83 +1,31 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-// Protected Route component
-function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('token');
-  const user = localStorage.getItem('user');
-  
-  if (!token || !user) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return children;
-}
-
-// Dashboard components (placeholder)
-function EmployeeDashboard() {
-  return (
-    <div style={{ padding: '40px', textAlign: 'center' }}>
-      <h1>Employee Dashboard</h1>
-      <p>Chấm công GPS - Trang nhân viên</p>
-    </div>
-  );
-}
-
-function ManagerDashboard() {
-  return (
-    <div style={{ padding: '40px', textAlign: 'center' }}>
-      <h1>Manager Dashboard</h1>
-      <p>Quản lý nhân sự</p>
-    </div>
-  );
-}
-
-function AdminDashboard() {
-  return (
-    <div style={{ padding: '40px', textAlign: 'center' }}>
-      <h1>Admin Dashboard</h1>
-      <p>Quản trị hệ thống</p>
-    </div>
-  );
-}
-
+// Import các trang (Pages) của bạn vào đây
+// Lưu ý: Đảm bảo đường dẫn import khớp với cấu trúc thư mục của bạn
+import Login from './pages/Login'; 
+import ForgotPassword from './pages/ForgotPassword';
+import VerifyOTP from './pages/VerifyOTP';
+import ResetPassword from './pages/ResetPassword';
 function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Login />} />
-        
-        {/* Protected Routes */}
-        <Route 
-          path="/employee/dashboard" 
-          element={
-            <ProtectedRoute>
-              <EmployeeDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/manager/dashboard" 
-          element={
-            <ProtectedRoute>
-              <ManagerDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/admin/dashboard" 
-          element={
-            <ProtectedRoute>
-              <AdminDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* Catch all - redirect to login */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Nếu người dùng vào thẳng localhost:5173, tự động đá sang trang Đăng nhập */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* Cấu hình các luồng Đăng nhập & Quên mật khẩu */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+
+        {/* Các trang chúng ta sẽ code tiếp theo (Tạm thời comment lại để không lỗi) */}
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+        {/* <Route path="/reset-password" element={<ResetPassword />} /> */}
+
+        {/* Bắt lỗi 404: Nếu gõ link bậy bạ, đá về trang Login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 }
 
