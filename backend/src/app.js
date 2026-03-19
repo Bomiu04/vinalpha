@@ -1,16 +1,13 @@
-const express = require('express');
 const cors = require('cors');
+const express = require('express');
 const db = require('./config/database');
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-const authRoutes = require('./routes/authRoutes'); // Nhớ import vào
-
-// Đảm bảo bạn khai báo đúng cái chuỗi '/api/auth' này
+const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
-// Middlewares
 
 
 // Test Connection
