@@ -4,10 +4,14 @@ const db = require('./config/database');
 require('dotenv').config();
 
 const app = express();
-
-// Middlewares
 app.use(cors());
 app.use(express.json());
+const authRoutes = require('./routes/authRoutes'); // Nhớ import vào
+
+// Đảm bảo bạn khai báo đúng cái chuỗi '/api/auth' này
+app.use('/api/auth', authRoutes);
+// Middlewares
+
 
 // Test Connection
 db.authenticate()

@@ -1,83 +1,50 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+
+// ===== AUTH =====
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import VerifyOTP from './pages/VerifyOTP';
+import ResetPassword from './pages/ResetPassword';
 
-// Protected Route component
-function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('token');
-  const user = localStorage.getItem('user');
-  
-  if (!token || !user) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return children;
-}
-
-// Dashboard components (placeholder)
-function EmployeeDashboard() {
-  return (
-    <div style={{ padding: '40px', textAlign: 'center' }}>
-      <h1>Employee Dashboard</h1>
-      <p>Chấm công GPS - Trang nhân viên</p>
-    </div>
-  );
-}
-
-function ManagerDashboard() {
-  return (
-    <div style={{ padding: '40px', textAlign: 'center' }}>
-      <h1>Manager Dashboard</h1>
-      <p>Quản lý nhân sự</p>
-    </div>
-  );
-}
-
-function AdminDashboard() {
-  return (
-    <div style={{ padding: '40px', textAlign: 'center' }}>
-      <h1>Admin Dashboard</h1>
-      <p>Quản trị hệ thống</p>
-    </div>
-  );
-}
-
+// ===== MAIN (GIAMDOC) =====
+import Dashboard from './Giamdoc/Dashboard';
+import Departments from './Giamdoc/Departments';
+import Employees from './Giamdoc/Employees';
+import Contracts from './Giamdoc/Contracts';
+import Branches from "./Giamdoc/Branches";
+import Positions from "./Giamdoc/Positions";
+import Approvals from "./Giamdoc/Approvals";
+import MainLayout from "./layouts/MainLayout";
 function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Login />} />
-        
-        {/* Protected Routes */}
-        <Route 
-          path="/employee/dashboard" 
-          element={
-            <ProtectedRoute>
-              <EmployeeDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/manager/dashboard" 
-          element={
-            <ProtectedRoute>
-              <ManagerDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/admin/dashboard" 
-          element={
-            <ProtectedRoute>
-              <AdminDashboard />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* Catch all - redirect to login */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+        {/* Default → Login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        {/* ===== AUTH ===== */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+
+        {/* ===== MAIN APP ===== */}
+        <Route element={<MainLayout />}>
+  <Route path="/dashboard" element={<Dashboard />} />
+  <Route path="/departments" element={<Departments />} />
+  <Route path="/employees" element={<Employees />} />
+  <Route path="/contracts" element={<Contracts />} />
+  <Route path="/branches" element={<Branches />} />
+  <Route path="/positions" element={<Positions />} />
+  <Route path="/approvals" element={<Approvals />} />
+</Route>
+        {/* 404 */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 }
 
