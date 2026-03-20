@@ -29,11 +29,20 @@ const Login = () => {
       const data = await response.json();
 
       if (data.success) {
-        // Lưu thông tin để các trang Dashboard dùng
         localStorage.setItem('user', JSON.stringify(data.user));
         
-        // CHUYỂN HƯỚNG THÀNH CÔNG
-        navigate('/dashboard'); 
+        // CHIA NGẢ ĐƯỜNG DỰA VÀO ROLE (QUYỀN)
+        const userRole = data.user.role;
+        
+        if (userRole === 'ADMIN') {
+          navigate('/admin/users'); // Admin vào trang quản lý User
+        } else if (userRole === 'DIRECTOR') {
+          navigate('/giamdoc/dashboard'); // Giám đốc vào trang tổng quan
+        } else if (userRole === 'MANAGER') {
+          navigate('/quanly/dashboard'); // Quản lý vào trang của quản lý
+        } else {
+          navigate('/dashboard'); // Nhân viên thường (USER) vào trang chấm công
+        }
       } else {
         setError(data.message || 'Tên đăng nhập hoặc mật khẩu không đúng!');
       }
