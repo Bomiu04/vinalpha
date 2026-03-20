@@ -8,24 +8,48 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
+  const [error, setError] = useState(''); // Thêm để hiển thị lỗi
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    // 👉 giả lập login
-    setTimeout(() => {
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          username: email, // Vì bạn đang dùng ô nhập email làm tên đăng nhập
+          password: password 
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // CHIA NGẢ ĐƯỜNG DỰA VÀO ROLE (QUYỀN)
+        const userRole = data.user.role;
+        
+        if (userRole === 'ADMIN') {
+          navigate('/admin/users'); // Admin vào trang quản lý User
+        } else if (userRole === 'DIRECTOR') {
+          navigate('/giamdoc/dashboard'); // Giám đốc vào trang tổng quan
+        } else if (userRole === 'MANAGER') {
+          navigate('/quanly/dashboard'); // Quản lý vào trang của quản lý
+        } else {
+          navigate('/dashboard'); // Nhân viên thường (USER) vào trang chấm công
+        }
+      } else {
+        setError(data.message || 'Tên đăng nhập hoặc mật khẩu không đúng!');
+      }
+    } catch (err) {
+      setError('Không thể kết nối đến máy chủ!');
+    } finally {
       setIsLoading(false);
-
-      // 🔐 lưu trạng thái đăng nhập
-      localStorage.setItem("isLogin", "true");
-
-      // 👉 chuyển sang dashboard
-      navigate('/dashboard');
-    }, 1000);
-  };
 
   return (
     <div className="login-container">
@@ -37,18 +61,25 @@ const Login = () => {
           <p>Vui lòng đăng nhập để truy cập hệ thống</p>
         </div>
 
+        {/* Hiển thị lỗi nếu đăng nhập thất bại */}
+        {error && (
+          <div style={{ color: '#dc2626', backgroundColor: '#fef2f2', padding: '10px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px', textAlign: 'center' }}>
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label htmlFor="email" className="form-label">Email</label>
+            <label htmlFor="email" className="form-label">Tên đăng nhập / Email</label>
             <div className="input-wrapper">
               <input
                 id="email"
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="form-input"
-                placeholder="Hãy nhập địa chỉ Email của bạn"
+                placeholder="Nhập tên đăng nhập của bạn"
               />
             </div>
           </div>
@@ -81,13 +112,18 @@ const Login = () => {
               <input id="remember-me" type="checkbox" />
               Ghi nhớ mật khẩu
             </label>
-            <a href="/forgot-password" className="forgot-password-link">
+            <button 
+              type="button"
+              onClick={() => navigate('/forgot-password')}
+              className="forgot-password-link"
+              style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+            >
               Quên mật khẩu?
-            </a>
+            </button>
           </div>
 
           <button type="submit" disabled={isLoading} className="btn-login">
-            {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
+            {isLoading ? 'Đang kiểm tra...' : 'Đăng nhập'}
           </button>
         </form>
 
