@@ -9,7 +9,7 @@ const SidebarAdmin = () => {
 const menuItems = [
     { path: '/Admin/dashboard', icon: <LayoutDashboard size={20} />, label: 'Tổng quan' },
     { path: '/Admin/users', icon: <UserCog size={20} />, label: 'Quản lý tài khoản' },
-    { path: '/Admin/settings', icon: <Settings size={20} />, label: 'Cài đặt hệ thống' },
+    { path: '/Admin/LocationSettings', icon: <Settings size={20} />, label: 'Cài đặt vị trí chấm công' },
   ];
 
   const handleLogout = (e) => {
