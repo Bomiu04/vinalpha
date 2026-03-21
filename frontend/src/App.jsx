@@ -11,6 +11,8 @@ import ResetPassword from './pages/ResetPassword';
 import AdminDashboard from './pages/Admin/Dashboard';
 import AdminUsers from './pages/Admin/Users';
 import AdminSettings from './pages/Admin/Settings';
+import LocationSettings from './pages/Admin/LocationSettings';
+import LocationMap from './pages/Admin/LocationMap';
 
 // ===== GIÁM ĐỐC =====
 import GiamDocDashboard from './pages/GiamDoc/Dashboard'; // Đã sửa tên để khớp route
@@ -41,7 +43,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
-
+        
         {/* ===== LUỒNG KHÔNG CÓ SIDEBAR ===== */}
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -55,6 +57,8 @@ function App() {
           <Route path="/Admin/dashboard" element={<AdminDashboard />} />
           <Route path="/Admin/users" element={<AdminUsers />} />
           <Route path="/Admin/settings" element={<AdminSettings />} />
+          <Route path="/Admin/LocationSettings" element={<LocationSettings />} />
+
 
           {/* 2. GIÁM ĐỐC ROUTES */}
           <Route path="/GiamDoc/dashboard" element={<GiamDocDashboard />} />

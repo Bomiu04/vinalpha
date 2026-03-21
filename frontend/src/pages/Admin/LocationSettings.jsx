@@ -1,176 +1,314 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Wifi, Save, Navigation, Trash2, Plus, Building2, CheckCircle2 } from 'lucide-react';
+import { MapPin, Wifi, Save, Navigation, Trash2, Plus, Edit2, CheckCircle, Map } from 'lucide-react';
+import LocationMap from './LocationMap'; 
 import axios from 'axios';
 
 const LocationSettings = () => {
     const [locations, setLocations] = useState([]);
     const [selectedLoc, setSelectedLoc] = useState(null);
-    const [loading, setLoading] = useState(false);
     const [ipInput, setIpInput] = useState('');
 
-    // 1. Giả lập dữ liệu hoặc gọi API lấy danh sách
+    // 🛠️ 1. GỌI API LẤY DANH SÁCH TỪ DATABASE
     useEffect(() => {
-        const fetchData = async () => {
-            // Sau này nối Backend: const res = await axios.get('/api/locations');
-            const dummyData = [
-                { id: 1, branch_name: 'Trụ sở chính Hà Nội', address: '123 Cầu Giấy, HN', latitude: 21.0285, longitude: 105.8542, radius_meters: 100, allowed_ips: ['192.168.1.1'], is_active: true },
-                { id: 2, branch_name: 'Chi nhánh Đà Nẵng', address: '45 Nguyễn Văn Linh, ĐN', latitude: 16.0544, longitude: 108.2022, radius_meters: 50, allowed_ips: [], is_active: true },
-                { id: 3, branch_name: 'Kho vận TP. HCM', address: 'KCN Tân Bình, HCM', latitude: 10.7626, longitude: 106.6602, radius_meters: 200, allowed_ips: ['1.1.1.1'], is_active: false },
-            ];
-            setLocations(dummyData);
-            setSelectedLoc(dummyData[0]);
+        const fetchLocations = async () => {
+            try {
+                const res = await axios.get('http://localhost:5000/api/admin/locations');
+                const apiData = res.data.data || res.data;
+
+                if (apiData && apiData.length > 0) {
+                    const formattedLocations = apiData.map(item => ({
+                        id: item.id,
+                        branch_name: item.branch_name || item.location_name || 'Chưa có tên',
+                        address: item.address || 'Chưa cập nhật',
+                        latitude: Number(item.latitude) || 21.028511,
+                        longitude: Number(item.longitude) || 105.804817,
+                        radius_meters: Number(item.radius_meters) || 100,
+                        allowed_ips: Array.isArray(item.allowed_ips) ? item.allowed_ips : 
+                                    (typeof item.allowed_ips === 'string' ? JSON.parse(item.allowed_ips) : []),
+                        is_active: item.is_active !== undefined ? item.is_active : true,
+                        gps_status: !!item.latitude,
+                        wifi_status: item.allowed_ips && item.allowed_ips.length > 0,
+                        isNew: false
+                    }));
+
+                    setLocations(formattedLocations);
+                    setSelectedLoc(formattedLocations[0]);
+                } else {
+                    handleAddNewBranch(); 
+                }
+            } catch (error) {
+                console.error("Lỗi lấy dữ liệu từ DB:", error);
+            }
         };
-        fetchData();
+        fetchLocations();
     }, []);
 
-    // 2. Hàm lấy tọa độ GPS từ trình duyệt
-    const getCurrentGPS = () => {
-        if (!navigator.geolocation) {
-            alert("Trình duyệt của bạn không hỗ trợ định vị!");
+    // 🛠️ 2. GỌI API LƯU XUỐNG DATABASE (Đã fix gọn gàng)
+    const handleSaveConfig = async () => {
+        const payload = {
+            location_name: selectedLoc.branch_name,
+            address: selectedLoc.address,
+            latitude: selectedLoc.latitude,
+            longitude: selectedLoc.longitude,
+            radius_meters: selectedLoc.radius_meters,
+            allowed_ips: selectedLoc.allowed_ips, 
+            is_active: selectedLoc.is_active
+        };
+
+        try {
+            if (selectedLoc.isNew) {
+                // THÊM MỚI (POST)
+                const res = await axios.post('http://localhost:5000/api/admin/locations', payload);
+                alert("Đã THÊM MỚI khu vực chấm công thành công!");
+                updateField('isNew', false);
+                // Đề phòng backend trả về data lồng nhau
+                const newId = res.data?.data?.id || res.data?.id; 
+                if (newId) updateField('id', newId);
+            } else {
+                // CẬP NHẬT (PUT)
+                await axios.put(`http://localhost:5000/api/admin/locations/${selectedLoc.id}/settings`, payload);
+                alert("Đã CẬP NHẬT cấu hình thành công!");
+            }
+        } catch (error) {
+            console.error("Lỗi khi lưu:", error);
+            alert("Lỗi khi lưu vào Database! Xem Console để biết chi tiết.");
+        }
+    };
+
+    // 🛠️ HÀM ĐỒNG BỘ DỮ LIỆU
+    const updateField = (field, value) => {
+        const updatedLoc = { ...selectedLoc, [field]: value };
+        setSelectedLoc(updatedLoc);
+        setLocations(locations.map(loc => loc.id === updatedLoc.id ? updatedLoc : loc));
+    };
+
+    // 🛠️ HÀM: THÊM VĂN PHÒNG MỚI
+    const handleAddNewBranch = () => {
+        const newId = Date.now(); 
+        const newBranch = {
+            id: newId,
+            branch_name: 'Văn phòng mới',
+            address: 'Chưa cập nhật địa chỉ',
+            latitude: 21.028511, 
+            longitude: 105.804817,
+            radius_meters: 100,
+            allowed_ips: [],
+            is_active: false,
+            gps_status: false,
+            wifi_status: false,
+            type: 'Branch',
+            isNew: true 
+        };
+        setLocations([newBranch, ...locations]); 
+        setSelectedLoc(newBranch);
+    };
+
+    // 🛠️ HÀM: XÓA CHI NHÁNH
+    const handleDeleteBranch = () => {
+        if (window.confirm(`Bạn có chắc muốn xóa cấu hình của "${selectedLoc.branch_name}"?`)) {
+            const newLocations = locations.filter(loc => loc.id !== selectedLoc.id);
+            setLocations(newLocations);
+            setSelectedLoc(newLocations.length > 0 ? newLocations[0] : null);
+        }
+    };
+
+    // 🛠️ HÀM: THÊM & XÓA IP WIFI
+    const handleAddIp = () => {
+        if (!ipInput.trim()) return;
+        if (selectedLoc.allowed_ips.includes(ipInput.trim())) {
+            alert("Địa chỉ IP này đã được thêm từ trước!");
             return;
         }
-        navigator.geolocation.getCurrentPosition((position) => {
-            setSelectedLoc({
-                ...selectedLoc,
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude
-            });
-        }, () => alert("Không thể lấy vị trí. Hãy bật quyền truy cập GPS!"));
+        const updatedIps = [...selectedLoc.allowed_ips, ipInput.trim()];
+        updateField('allowed_ips', updatedIps);
+        updateField('wifi_status', updatedIps.length > 0); 
+        setIpInput(''); 
     };
 
-    // 3. Quản lý danh sách IP Wifi
-    const addIp = () => {
-        if (!ipInput) return;
-        setSelectedLoc({
-            ...selectedLoc,
-            allowed_ips: [...selectedLoc.allowed_ips, ipInput]
-        });
-        setIpInput('');
+    const handleRemoveIp = (ipToRemove) => {
+        const updatedIps = selectedLoc.allowed_ips.filter(ip => ip !== ipToRemove);
+        updateField('allowed_ips', updatedIps);
+        updateField('wifi_status', updatedIps.length > 0);
     };
 
-    const removeIp = (index) => {
-        const newIps = selectedLoc.allowed_ips.filter((_, i) => i !== index);
-        setSelectedLoc({ ...selectedLoc, allowed_ips: newIps });
-    };
-
-    const handleSave = async () => {
-        setLoading(true);
-        try {
-            // Nối Backend sau: await axios.put(`/api/locations/${selectedLoc.id}/settings`, selectedLoc);
-            alert("Đã lưu cấu hình khu vực chấm công thành công!");
-        } catch (error) {
-            alert("Lỗi khi lưu dữ liệu!");
-        } finally {
-            setLoading(false);
+    // 🛠️ 3. LẤY TỌA ĐỘ GPS (Đã fix lỗi lặp code)
+    // 🛠️ 3. LẤY TỌA ĐỘ GPS (Đã dọn dẹp sạch sẽ lỗi lồng code)
+    const handleGetGPS = () => {
+        if (!navigator.geolocation) {
+            return alert("Trình duyệt của bạn không hỗ trợ định vị GPS!");
         }
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const updatedLoc = {
+                    ...selectedLoc,
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                    gps_status: true
+                };
+
+                setSelectedLoc(updatedLoc);
+                setLocations(prevLocations => 
+                    prevLocations.map(loc => loc.id === updatedLoc.id ? updatedLoc : loc)
+                );
+            },
+            (error) => {
+                console.error("Lỗi GPS:", error);
+                if (error.code === 1) alert("Lỗi: Bạn đã chặn quyền truy cập vị trí!");
+                else if (error.code === 3) alert("Lỗi: Quá thời gian chờ (Timeout).");
+            },
+            { enableHighAccuracy: false, timeout: 30000, maximumAge: 0 }
+        );
     };
 
-    if (!selectedLoc) return <div>Đang tải...</div>;
+    const Badge = ({ label, active }) => (
+        <span style={{ fontSize: '10px', fontWeight: '600', padding: '2px 8px', borderRadius: '6px', marginRight: '5px', backgroundColor: active ? '#E0F2FE' : '#FFE4E6', color: active ? '#0369A1' : '#E11D48', border: `1px solid ${active ? '#BAE6FD' : '#FECDD3'}` }}>
+            {label}: {active ? 'Bật' : 'Tắt'}
+        </span>
+    );
+
+    if (!selectedLoc) return <div style={{ padding: '20px' }}>Đang tải dữ liệu...</div>;
 
     return (
-        <div className="location-container" style={{ display: 'flex', gap: '20px', padding: '20px', backgroundColor: '#f9fafb', height: '100vh' }}>
-            {/* CỘT TRÁI: DANH SÁCH CHI NHÁNH */}
-            <div style={{ width: '350px', backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '16px' }}>
-                <h3 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Building2 size={20} color="#6366f1" /> Chi nhánh công ty
-                </h3>
-                {locations.map(loc => (
-                    <div 
-                        key={loc.id}
-                        onClick={() => setSelectedLoc(loc)}
-                        style={{
-                            padding: '12px', borderRadius: '8px', cursor: 'pointer', marginBottom: '8px',
-                            border: selectedLoc.id === loc.id ? '2px solid #6366f1' : '1px solid #e5e7eb',
-                            backgroundColor: selectedLoc.id === loc.id ? '#f5f3ff' : 'transparent'
-                        }}
-                    >
-                        <div style={{ fontWeight: '600', fontSize: '14px' }}>{loc.branch_name}</div>
-                        <div style={{ fontSize: '12px', color: '#6b7280' }}>{loc.address}</div>
-                        <div style={{ marginTop: '5px' }}>
-                            <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '10px', backgroundColor: loc.is_active ? '#dcfce7' : '#fee2e2', color: loc.is_active ? '#166534' : '#991b1b' }}>
-                                {loc.is_active ? 'Đang bật' : 'Đang tắt'}
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#F8FAFC', fontFamily: 'system-ui' }}>
+            
+            <div style={{ padding: '20px 30px', backgroundColor: 'white', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <div style={{ padding: '12px', backgroundColor: '#F0F9FF', borderRadius: '12px' }}>
+                        <Map color="#0EA5E9" size={24} />
+                    </div>
+                    <div>
+                        <h1 style={{ margin: 0, fontSize: '20px', color: '#0F172A', fontWeight: '700' }}>Cài đặt Khu vực Chấm công</h1>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#64748B' }}>Thiết lập tọa độ GPS, bán kính hợp lệ và dải IP mạng cho phép nhân viên Check-in.</p>
+                    </div>
+                </div>
+                <button onClick={handleAddNewBranch} style={{ backgroundColor: '#0EA5E9', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(14, 165, 233, 0.2)' }}>
+                    <Plus size={18} /> Thêm văn phòng mới
+                </button>
+            </div>
+
+            <div style={{ display: 'flex', flex: 1, padding: '20px', gap: '25px', overflow: 'hidden' }}>
+                
+                <div style={{ width: '280px', overflowY: 'auto', paddingRight: '5px' }}>
+                    <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748B', marginBottom: '15px' }}>DANH SÁCH CHI NHÁNH</p>
+                    {locations.map(loc => (
+                        <div key={loc.id} onClick={() => setSelectedLoc(loc)} style={{ padding: '15px', borderRadius: '15px', backgroundColor: 'white', cursor: 'pointer', marginBottom: '12px', border: selectedLoc.id === loc.id ? '1.5px solid #38BDF8' : '1px solid #F1F5F9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', position: 'relative' }}>
+                            <div style={{ fontWeight: '700', fontSize: '14px', color: '#1E293B' }}>
+                                {loc.branch_name} {loc.isNew && <span style={{color: '#E11D48', fontSize: '10px'}}>(Mới)</span>}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#94A3B8', margin: '4px 0 10px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <MapPin size={12} /> {loc.address}
+                            </div>
+                            <div style={{ display: 'flex' }}><Badge label="GPS" active={loc.gps_status} /><Badge label="Wifi" active={loc.wifi_status} /></div>
+                            {loc.type === 'HQ' && <span style={{ position: 'absolute', top: '15px', right: '15px', fontSize: '9px', backgroundColor: '#0EA5E9', color: 'white', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold' }}>HQ</span>}
+                        </div>
+                    ))}
+                </div>
+
+                <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '20px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <h2 style={{ fontSize: '20px', margin: 0 }}>Cấu hình: {selectedLoc.branch_name}</h2>
+                            <Edit2 size={16} color="#94A3B8" style={{ cursor: 'pointer' }} onClick={() => {
+                                const newName = prompt("Nhập tên chi nhánh mới:", selectedLoc.branch_name);
+                                if (newName) updateField('branch_name', newName);
+                            }} />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => updateField('is_active', !selectedLoc.is_active)}>
+                            <div style={{ width: '40px', height: '20px', backgroundColor: selectedLoc.is_active ? '#22C55E' : '#CBD5E1', borderRadius: '20px', position: 'relative', transition: '0.3s' }}>
+                                <div style={{ width: '16px', height: '16px', backgroundColor: 'white', borderRadius: '50%', position: 'absolute', right: selectedLoc.is_active ? '2px' : '22px', top: '2px', transition: '0.3s' }} />
+                            </div>
+                            <span style={{ fontSize: '13px', color: selectedLoc.is_active ? '#22C55E' : '#64748B', fontWeight: '600' }}>
+                                {selectedLoc.is_active ? 'Đang áp dụng' : 'Đã tắt'}
                             </span>
                         </div>
                     </div>
-                ))}
-            </div>
 
-            {/* CỘT PHẢI: CẤU HÌNH CHI TIẾT */}
-            <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', padding: '24px', overflowY: 'auto' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h2>Thiết lập khu vực: {selectedLoc.branch_name}</h2>
-                    <button onClick={handleSave} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                        <Save size={18} /> {loading ? 'Đang lưu...' : 'Lưu cài đặt'}
-                    </button>
-                </div>
+                    <div style={{ display: 'flex', gap: '40px' }}>
+                        <div style={{ flex: 1 }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#334155' }}>
+                                <div style={{ backgroundColor: '#F0F9FF', padding: '6px', borderRadius: '8px' }}><CheckCircle size={18} color="#0EA5E9" /></div> 
+                                Kiểm tra tọa độ GPS
+                            </h4>
+                            <div style={{ marginTop: '20px' }}>
+    <label style={{ fontSize: '12px', color: '#64748B' }}>Loại địa điểm (Location Type)</label>
+    <select 
+        value={selectedLoc.type || 'branch'} 
+        onChange={(e) => updateField('type', e.target.value)}
+        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px', backgroundColor: 'white', cursor: 'pointer' }}
+    >
+        <option value="hq">Trụ sở chính (HQ)</option>
+        <option value="branch">Chi nhánh (Branch)</option>
+        <option value="warehouse">Kho bãi (Warehouse)</option>
+    </select>
+</div>
+                            <div style={{ marginTop: '20px' }}>
+                                <label style={{ fontSize: '12px', color: '#64748B' }}>Vĩ độ (Latitude)</label>
+                                <input type="number" value={selectedLoc.latitude} onChange={(e) => updateField('latitude', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px' }} />
+                            </div>
+                            <div style={{ marginTop: '15px' }}>
+                                <label style={{ fontSize: '12px', color: '#64748B' }}>Kinh độ (Longitude)</label>
+                                <input type="number" value={selectedLoc.longitude} onChange={(e) => updateField('longitude', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px' }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: '15px', marginTop: '15px', alignItems: 'flex-end' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '12px', color: '#64748B' }}>Bán kính cho phép (m)</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input type="number" value={selectedLoc.radius_meters} onChange={(e) => updateField('radius_meters', Number(e.target.value))} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px' }} />
+                                        <span style={{ position: 'absolute', right: '15px', top: '18px', color: '#94A3B8', fontSize: '13px' }}>mét</span>
+                                    </div>
+                                </div>
+                                <button onClick={handleGetGPS} style={{ height: '45px', padding: '0 20px', backgroundColor: '#E0F2FE', color: '#0369A1', border: 'none', borderRadius: '10px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                    <Navigation size={16} /> Lấy tọa độ hiện tại
+                                </button>
+                            </div>
+                        </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px' }}>
-                    {/* PHẦN GPS */}
-                    <div style={{ padding: '20px', border: '1px solid #f3f4f6', borderRadius: '12px' }}>
-                        <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
-                            <MapPin size={18} color="#ef4444" /> Định vị GPS (Bắt buộc)
-                        </h4>
-                        <div style={{ marginBottom: '15px' }}>
-                            <label style={{ fontSize: '13px', display: 'block', marginBottom: '5px' }}>Vĩ độ (Latitude)</label>
-                            <input type="text" value={selectedLoc.latitude || ''} className="ca-input" readOnly style={{ backgroundColor: '#f3f4f6' }} />
-                        </div>
-                        <div style={{ marginBottom: '15px' }}>
-                            <label style={{ fontSize: '13px', display: 'block', marginBottom: '5px' }}>Kinh độ (Longitude)</label>
-                            <input type="text" value={selectedLoc.longitude || ''} className="ca-input" readOnly style={{ backgroundColor: '#f3f4f6' }} />
-                        </div>
-                        <button onClick={getCurrentGPS} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6366f1', background: 'none', border: '1px solid #6366f1', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer' }}>
-                            <Navigation size={16} /> Lấy tọa độ tại đây
-                        </button>
-                        <div style={{ marginTop: '20px' }}>
-                            <label style={{ fontSize: '13px', display: 'block', marginBottom: '5px' }}>Bán kính chấm công cho phép (Mét)</label>
-                            <input 
-                                type="number" 
-                                className="ca-input" 
-                                value={selectedLoc.radius_meters} 
-                                onChange={(e) => setSelectedLoc({...selectedLoc, radius_meters: e.target.value})}
-                            />
+                        <div style={{ width: '350px', height: '270px', borderRadius: '15px', overflow: 'hidden', marginTop: '45px', border: '1px solid #E2E8F0', zIndex: 1 }}>
+                            <LocationMap lat={selectedLoc.latitude} lng={selectedLoc.longitude} radius={selectedLoc.radius_meters} />
                         </div>
                     </div>
 
-                    {/* PHẦN WIFI & TRẠNG THÁI */}
-                    <div style={{ padding: '20px', border: '1px solid #f3f4f6', borderRadius: '12px' }}>
-                        <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
-                            <Wifi size={18} color="#3b82f6" /> Giới hạn IP Wifi (Tùy chọn)
+                    <div style={{ marginTop: '40px' }}>
+                        <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#334155' }}>
+                            <div style={{ backgroundColor: '#F5F3FF', padding: '6px', borderRadius: '8px' }}><Wifi size={18} color="#7C3AED" /></div>
+                            Ràng buộc địa chỉ IP (Wifi Công ty)
                         </h4>
-                        <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+                        <p style={{ fontSize: '12px', color: '#94A3B8', margin: '10px 0 20px 0' }}>Chỉ cho phép nhân viên chấm công khi kết nối vào mạng Wifi có địa chỉ IP công khai được liệt kê dưới đây.</p>
+                        
+                        {selectedLoc.allowed_ips.map((ip, i) => (
+                            <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                                <input type="text" value={ip} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC' }} readOnly />
+                                <button onClick={() => handleRemoveIp(ip)} style={{ padding: '10px 15px', backgroundColor: '#FFF1F2', color: '#E11D48', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>
+                                    <Trash2 size={18} />
+                                </button>
+                            </div>
+                        ))}
+                        
+                        <div style={{ display: 'flex', gap: '10px' }}>
                             <input 
                                 type="text" 
-                                placeholder="Nhập địa chỉ IP..." 
-                                className="ca-input" 
+                                placeholder="Nhập địa chỉ IPv4 (VD: 14.226.236.155)..." 
                                 value={ipInput}
                                 onChange={(e) => setIpInput(e.target.value)}
+                                onKeyPress={(e) => e.key === 'Enter' && handleAddIp()} 
+                                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }} 
                             />
-                            <button onClick={addIp} style={{ padding: '0 15px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
-                                <Plus size={18} />
+                            <button onClick={handleAddIp} style={{ padding: '0 25px', backgroundColor: '#F5F3FF', color: '#7C3AED', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                                Thêm IP
                             </button>
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            {selectedLoc.allowed_ips.map((ip, index) => (
-                                <span key={index} style={{ padding: '4px 10px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '4px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    {ip} <Trash2 size={12} color="#ef4444" style={{ cursor: 'pointer' }} onClick={() => removeIp(index)} />
-                                </span>
-                            ))}
-                        </div>
+                    </div>
 
-                        <hr style={{ margin: '25px 0', border: 'none', borderTop: '1px solid #f3f4f6' }} />
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <input 
-                                type="checkbox" 
-                                checked={selectedLoc.is_active} 
-                                onChange={(e) => setSelectedLoc({...selectedLoc, is_active: e.target.checked})}
-                                style={{ width: '20px', height: '20px', cursor: 'pointer' }}
-                            />
-                            <div>
-                                <div style={{ fontWeight: '600' }}>Kích hoạt chấm công tại đây</div>
-                                <div style={{ fontSize: '12px', color: '#6b7280' }}>Cho phép nhân viên chấm công tại khu vực này</div>
-                            </div>
-                        </div>
+                    <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #F1F5F9', paddingTop: '30px' }}>
+                        <button onClick={handleDeleteBranch} style={{ padding: '12px 25px', color: '#E11D48', backgroundColor: 'transparent', border: '1px solid #FEE2E2', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>
+                            Xóa khu vực này
+                        </button>
+                        {/* 🛑 NÚT LƯU ĐÃ ĐƯỢC KẾT NỐI SỰ KIỆN Ở ĐÂY */}
+                        <button onClick={handleSaveConfig} style={{ padding: '12px 30px', backgroundColor: '#1E293B', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                            <Save size={18} /> Lưu cấu hình
+                        </button>
                     </div>
                 </div>
             </div>
