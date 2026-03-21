@@ -134,12 +134,142 @@
 
 /* Styling cụ thể cho file ảnh bên trong */
 .logo img {
-  height: 48px; /* Tăng chiều cao lên một chút cho rõ */
+  height: 100px; /* Tăng chiều cao lên một chút cho rõ */
+  width: 100px;
   width: auto; /* Tự động chỉnh chiều rộng để không bị méo ảnh */
   object-fit: contain; /* Đảm bảo ảnh luôn nằm gọn trong khung */
   transition: transform 0.3s ease; /* Hiệu ứng nhẹ khi hover */
 }
-
+.logo{
+  height: 60px;
+  margin-bottom: 10px;
+  margin-left: 1px;
+}
 .logo img:hover {
   transform: scale(1.05); /* Phóng to nhẹ khi rê chuột vào */
+}
+/* --- PHÔNG NỀN MỜ --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  /* THÊM ANIMATION MỜ DẦN */
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* --- HỘP HỘI THOẠI --- */
+.logout-modal {
+  background: white;
+  padding: 30px;
+  border-radius: 24px;
+  width: 350px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  /* THÊM ANIMATION BAY LÊN & PHÓNG TO */
+  animation: slideInAndScale 0.4s ease-out;
+}
+
+.modal-icon-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.icon-circle {
+  width: 80px;
+  height: 80px;
+  background: #e6f7ed;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.logout-modal h3 {
+  font-size: 20px;
+  color: #1f2937;
+  margin-bottom: 10px;
+}
+
+.logout-modal p {
+  color: #6b7280;
+  margin-bottom: 25px;
+}
+
+/* --- CÁC NÚT BẤM (GIỮ NGUYÊN HOVER & ACTIVE CỦA BẠN) --- */
+.modal-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.btn-confirm,
+.btn-cancel {
+  flex: 1;
+  border: none;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  white-space: nowrap;
+}
+
+/* NÚT XÁC NHẬN */
+.btn-confirm {
+  background: #16a34a;
+  color: white;
+  box-shadow: 0 4px 6px rgba(22, 163, 74, 0.2);
+}
+
+.btn-confirm:hover {
+  background: #15803d;
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 12px rgba(22, 163, 74, 0.3);
+}
+
+.btn-confirm:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+}
+
+/* NÚT HỦY */
+.btn-cancel {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.btn-cancel:hover {
+  background: #ffe4e6;
+  color: #be123c;
+  transform: translateY(-2px) scale(1.03);
+}
+
+.btn-cancel:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* --- ĐỊNH NGHĨA ANIMATION (KEYFRAMES) --- */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInAndScale {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
