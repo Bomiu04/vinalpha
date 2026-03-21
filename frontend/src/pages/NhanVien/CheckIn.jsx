@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Circle, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Fingerprint } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Fingerprint } from 'lucide-react';
 
 import './CheckIn.css';
 
@@ -57,6 +57,7 @@ const CheckIn = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [actionError, setActionError] = useState('');
+  const [showAttendanceCard, setShowAttendanceCard] = useState(true);
   const watchIdRef = useRef(null);
 
   const user = useMemo(() => {
@@ -302,36 +303,44 @@ const CheckIn = () => {
         </div>
 
         {/* Overlay: button */}
-        <div className="checkin-fab-card">
-          <button
-            className={`checkin-fab-button ${buttonVariant}`}
-            onClick={handleAttendanceAction}
-            disabled={actionLoading || isDone || !gps.position || (workLocation?.radius_meters && !isInsideRadius)}
-            type="button"
-            aria-label="attendance action"
-          >
-            <Fingerprint size={44} color="#fff" />
-            <div className="checkin-fab-text">
-              {isDone ? 'ĐÃ CHECK OUT' : canCheckOut ? 'CHECK OUT' : 'CHECK IN'}
+        <button
+          type="button"
+          className={`checkin-fab-toggle ${showAttendanceCard ? 'expanded' : 'collapsed'}`}
+          onClick={() => setShowAttendanceCard((prev) => !prev)}
+          aria-label={showAttendanceCard ? 'Thu gọn ô chấm công' : 'Mở ô chấm công'}
+        >
+          {showAttendanceCard ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
+        <div className={`checkin-fab-card ${showAttendanceCard ? 'open' : 'closed'}`}>
+            <button
+              className={`checkin-fab-button ${buttonVariant}`}
+              onClick={handleAttendanceAction}
+              disabled={!showAttendanceCard || actionLoading || isDone || !gps.position || (workLocation?.radius_meters && !isInsideRadius)}
+              type="button"
+              aria-label="attendance action"
+            >
+              <Fingerprint size={44} color="#fff" />
+              <div className="checkin-fab-text">
+                {isDone ? 'ĐÃ CHECK OUT' : canCheckOut ? 'CHECK OUT' : 'CHECK IN'}
+              </div>
+            </button>
+
+            <div
+              className={`checkin-fab-message ${
+                isDone ? 'msg-done' : canCheckOut ? 'msg-warning' : 'msg-info'
+              }`}
+            >
+              {isDone
+                ? `Đã checkout lúc ${formatTime(attendanceToday.checkOutTime)}`
+                : canCheckOut
+                  ? `Bắt đầu checkout • Vào ca: ${formatTime(attendanceToday.checkInTime)}`
+                  : `Bạn chưa bắt đầu làm việc`}
             </div>
-          </button>
 
-          <div
-            className={`checkin-fab-message ${
-              isDone ? 'msg-done' : canCheckOut ? 'msg-warning' : 'msg-info'
-            }`}
-          >
-            {isDone
-              ? `Đã checkout lúc ${formatTime(attendanceToday.checkOutTime)}`
-              : canCheckOut
-                ? `Bắt đầu checkout • Vào ca: ${formatTime(attendanceToday.checkInTime)}`
-                : `Bạn chưa bắt đầu làm việc`}
+            <div className="checkin-fab-subtext">
+              {message}
+            </div>
           </div>
-
-          <div className="checkin-fab-subtext">
-            {message}
-          </div>
-        </div>
       </div>
     </div>
   );

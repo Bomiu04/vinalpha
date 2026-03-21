@@ -11,5 +11,6 @@ router.get('/dashboard/:id', employeeController.getDashboard);
 router.get('/attendance/summary/:id', employeeController.getAttendanceSummary);
 router.post('/attendance/checkin/:id', employeeController.checkIn);
 router.post('/attendance/checkout/:id', employeeController.checkOut);
+router.get('/attendance/manager-zone/:id', employeeController.getManagerZoneAttendance);
 
 module.exports = router;

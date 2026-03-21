@@ -4,6 +4,8 @@
   --border-color: #e5e7eb;
   /* Cao hơn mọi pane Leaflet (control ~800, popup ~700) — thấp hơn modal đăng xuất (9999) */
   --checkin-ui-z: 1200;
+  --fab-motion-duration: 300ms;
+  --fab-motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .checkin-shell {
@@ -41,6 +43,7 @@
 
 .checkin-map-ui .checkin-recenter-btn,
 .checkin-map-ui .checkin-map-controls,
+.checkin-map-ui .checkin-fab-toggle,
 .checkin-map-ui .checkin-fab-card {
   pointer-events: auto;
 }
@@ -70,22 +73,28 @@
 
 .checkin-radar-label {
   position: absolute;
-  top: 18px;
-  left: 120px;
-  max-width: min(280px, calc(100% - 300px));
+  top: 14px;
+  left: 62px;
+  transform: none;
+  width: fit-content;
+  max-width: min(420px, calc(100% - 180px));
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(229, 231, 235, 0.9);
-  padding: 12px 14px;
+  padding: 10px 12px;
   border-radius: 18px;
   pointer-events: none;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  z-index: calc(var(--checkin-ui-z) + 1);
+  display: grid;
+  gap: 2px;
 }
 
 @media (max-width: 900px) {
   .checkin-radar-label {
+    top: 142px;
     left: 14px;
-    top: 140px;
-    max-width: calc(100% - 28px);
+    transform: none;
+    width: calc(100% - 28px);
   }
 }
 
@@ -93,12 +102,17 @@
   font-weight: 800;
   color: #16a34a;
   font-size: 14px;
-  margin-bottom: 4px;
+  margin-bottom: 0;
+  line-height: 1.2;
 }
 
 .checkin-radar-sub {
   font-size: 12px;
   color: #6b7280;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .checkin-map-controls {
@@ -159,6 +173,60 @@
   align-items: center;
   gap: 10px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  transform-origin: top right;
+  transition:
+    transform var(--fab-motion-duration) var(--fab-motion-ease),
+    opacity var(--fab-motion-duration) var(--fab-motion-ease);
+}
+
+.checkin-fab-card.closed {
+  transform: translateX(calc(100% + 24px)) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.checkin-fab-toggle {
+  position: absolute;
+  top: 26px;
+  right: 26px;
+  z-index: calc(var(--checkin-ui-z) + 1);
+  border: 1px solid #dbeafe;
+  background: rgba(255, 255, 255, 0.98);
+  color: #1d4ed8;
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 0;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+  transition:
+    right var(--fab-motion-duration) var(--fab-motion-ease),
+    top var(--fab-motion-duration) var(--fab-motion-ease),
+    transform var(--fab-motion-duration) var(--fab-motion-ease),
+    box-shadow 220ms ease;
+}
+
+.checkin-fab-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.checkin-fab-toggle.collapsed {
+  top: 26px;
+  right: 0;
+  transform: none;
+  width: 38px;
+  height: 74px;
+  border-radius: 14px 0 0 14px;
+  border-right: none;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.checkin-fab-toggle.collapsed:hover {
+  transform: none;
 }
 
 .checkin-fab-button {
