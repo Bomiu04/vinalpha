@@ -22,6 +22,8 @@ import Contracts from './pages/GiamDoc/Contracts';
 import Branches from './pages/GiamDoc/Branches';
 import Positions from './pages/GiamDoc/Positions';
 import Approvals from './pages/GiamDoc/Approvals';
+import DepartmentDetail from './pages/GiamDoc/DepartmentDetail';
+import DepartmentCreate from "./pages/GiamDoc/DepartmentCreate";
 
 // ===== QUẢN LÝ =====
 import ManagerDashboard from './pages/QuanLy/Dashboard'; // Đã sửa tên để khớp route
@@ -68,6 +70,8 @@ function App() {
           <Route path="/GiamDoc/branches" element={<Branches />} />
           <Route path="/GiamDoc/positions" element={<Positions />} />
           <Route path="/GiamDoc/approvals" element={<Approvals />} />
+          <Route path="/departments/:id" element={<DepartmentDetail />} />
+          <Route path="/departments/create" element={<DepartmentCreate />} />
 
           {/* 3. QUẢN LÝ ROUTES */}
           <Route path="/QuanLy/dashboard" element={<ManagerDashboard />} />

@@ -9,8 +9,16 @@ app.use(express.json());
 
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/AdminRoutes');
+const dashboardRoutes = require("./routes/dashboard");
+const departmentRoutes = require("./routes/departmentRoutes");
+const branchRoutes = require('./routes/branchesRoutes');
+
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/departments", departmentRoutes);
+app.use('/api/branches', branchRoutes);
+
 
 
 // Test Connection
