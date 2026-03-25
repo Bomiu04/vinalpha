@@ -137,7 +137,7 @@ exports.getAttendanceSummary = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1) Lấy work_location từ chuỗi: employee -> position -> department -> branch -> work_location
+    // 1) Lấy work_location (ĐÃ SỬA LẠI JOIN)
     const locationResult = await db.query(
       `
         SELECT
@@ -153,7 +153,7 @@ exports.getAttendanceSummary = async (req, res) => {
         LEFT JOIN position p ON e.position_id = p.id
         LEFT JOIN department d ON p.department_id = d.id
         LEFT JOIN branch b ON d.branch_id = b.id
-        LEFT JOIN work_location w ON b.work_location_id = w.id
+        LEFT JOIN work_location w ON w.branch_id = b.id
         WHERE e.id = $1
         LIMIT 1
       `,
@@ -244,7 +244,7 @@ exports.checkIn = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu latitude/longitude hợp lệ.' });
     }
 
-    // Lấy work_location
+    // Lấy work_location (ĐÃ SỬA LẠI JOIN)
     const locationResult = await db.query(
       `
         SELECT
@@ -256,7 +256,7 @@ exports.checkIn = async (req, res) => {
         LEFT JOIN position p ON e.position_id = p.id
         LEFT JOIN department d ON p.department_id = d.id
         LEFT JOIN branch b ON d.branch_id = b.id
-        LEFT JOIN work_location w ON b.work_location_id = w.id
+        LEFT JOIN work_location w ON w.branch_id = b.id
         WHERE e.id = $1
         LIMIT 1
       `,
@@ -362,6 +362,7 @@ exports.checkOut = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu latitude/longitude hợp lệ.' });
     }
 
+    // Lấy work_location (ĐÃ SỬA LẠI JOIN)
     const locationResult = await db.query(
       `
         SELECT
@@ -373,7 +374,7 @@ exports.checkOut = async (req, res) => {
         LEFT JOIN position p ON e.position_id = p.id
         LEFT JOIN department d ON p.department_id = d.id
         LEFT JOIN branch b ON d.branch_id = b.id
-        LEFT JOIN work_location w ON b.work_location_id = w.id
+        LEFT JOIN work_location w ON w.branch_id = b.id
         WHERE e.id = $1
         LIMIT 1
       `,
@@ -450,7 +451,7 @@ exports.getManagerZoneAttendance = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1) Xác định zone làm việc của quản lý (đang chuẩn hóa về HQ tạm)
+    // 1) Xác định zone làm việc của quản lý (ĐÃ SỬA LẠI JOIN)
     const managerLocationResult = await db.query(
       `
         SELECT
@@ -466,7 +467,7 @@ exports.getManagerZoneAttendance = async (req, res) => {
         LEFT JOIN position p ON e.position_id = p.id
         LEFT JOIN department d ON p.department_id = d.id
         LEFT JOIN branch b ON d.branch_id = b.id
-        LEFT JOIN work_location w ON b.work_location_id = w.id
+        LEFT JOIN work_location w ON w.branch_id = b.id
         WHERE e.id = $1
         LIMIT 1
       `,
