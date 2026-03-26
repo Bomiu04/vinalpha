@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Wifi, Save, Navigation, Trash2, Plus, Edit2, CheckCircle, Map } from 'lucide-react';
+// 🔥 BƯỚC 1: Đổi tên Map thành MapIcon ở đây
+import { MapPin, Wifi, Save, Navigation, Trash2, Plus, Edit2, CheckCircle, Map as MapIcon } from 'lucide-react';
 import LocationMap from './LocationMap'; 
 import axios from 'axios';
 
@@ -7,6 +8,7 @@ const LocationSettings = () => {
     const [locations, setLocations] = useState([]);
     const [selectedLoc, setSelectedLoc] = useState(null);
     const [ipInput, setIpInput] = useState('');
+    const [branches, setBranches] = useState([]);
 
     // 🛠️ 1. GỌI API LẤY DANH SÁCH TỪ DATABASE
     useEffect(() => {
@@ -16,25 +18,40 @@ const LocationSettings = () => {
                 const apiData = res.data.data || res.data;
 
                 if (apiData && apiData.length > 0) {
+                    const uniqueBranches = [];
+                   const validData = apiData.filter(item => item.work_location_id !== null);
+                    const duplicateFilterMap = new Map(); 
+                    for (const item of apiData) {
+                        if(!duplicateFilterMap.has(item.id)){
+                            duplicateFilterMap.set(item.id, true);
+                            uniqueBranches.push({ id: item.id, branch_name: item.branch_name });
+                        }
+                    }
+                    setBranches(uniqueBranches);
+
                     const formattedLocations = apiData.map(item => ({
-                        id: item.id,
-                        branch_name: item.branch_name || item.location_name || 'Chưa có tên',
+                        id: item.work_location_id || `temp_${item.id}`, 
+                        work_location_id: item.work_location_id,
+                        branch_id: item.id,
+                        location_name: item.location_name || 'Chưa đặt tên khu vực',
+                        branch_name: item.branch_name || 'Chi nhánh chưa rõ',
                         address: item.address || 'Chưa cập nhật',
-                        latitude: Number(item.latitude) || 21.028511,
-                        longitude: Number(item.longitude) || 105.804817,
+                        latitude: Number(item.latitude) || null,
+                        longitude: Number(item.longitude) || null,
                         radius_meters: Number(item.radius_meters) || 100,
                         allowed_ips: Array.isArray(item.allowed_ips) ? item.allowed_ips : 
                                     (typeof item.allowed_ips === 'string' ? JSON.parse(item.allowed_ips) : []),
                         is_active: item.is_active !== undefined ? item.is_active : true,
                         gps_status: !!item.latitude,
                         wifi_status: item.allowed_ips && item.allowed_ips.length > 0,
+                        type: item.type || 'branch', 
                         isNew: false
                     }));
 
                     setLocations(formattedLocations);
                     setSelectedLoc(formattedLocations[0]);
                 } else {
-                    handleAddNewBranch(); 
+                    handleAddNewLocation(); 
                 }
             } catch (error) {
                 console.error("Lỗi lấy dữ liệu từ DB:", error);
@@ -43,10 +60,11 @@ const LocationSettings = () => {
         fetchLocations();
     }, []);
 
-    // 🛠️ 2. GỌI API LƯU XUỐNG DATABASE (Đã fix gọn gàng)
     const handleSaveConfig = async () => {
         const payload = {
-            location_name: selectedLoc.branch_name,
+            location_name: selectedLoc.location_name,
+            location_type: selectedLoc.type, 
+            id: selectedLoc.branch_id, 
             address: selectedLoc.address,
             latitude: selectedLoc.latitude,
             longitude: selectedLoc.longitude,
@@ -57,38 +75,35 @@ const LocationSettings = () => {
 
         try {
             if (selectedLoc.isNew) {
-                // THÊM MỚI (POST)
                 const res = await axios.post('http://localhost:5000/api/admin/locations', payload);
-                alert("Đã THÊM MỚI khu vực chấm công thành công!");
+                alert("✅ Đã THÊM MỚI khu vực thành công!");
                 updateField('isNew', false);
-                // Đề phòng backend trả về data lồng nhau
                 const newId = res.data?.data?.id || res.data?.id; 
-                if (newId) updateField('id', newId);
+                if (newId) updateField('branch_id', newId);
             } else {
-                // CẬP NHẬT (PUT)
-                await axios.put(`http://localhost:5000/api/admin/locations/${selectedLoc.id}/settings`, payload);
-                alert("Đã CẬP NHẬT cấu hình thành công!");
+                await axios.put(`http://localhost:5000/api/admin/locations/${selectedLoc.branch_id}/settings`, payload);
+                alert("✅ Đã CẬP NHẬT toàn bộ cấu hình thành công!");
             }
         } catch (error) {
             console.error("Lỗi khi lưu:", error);
-            alert("Lỗi khi lưu vào Database! Xem Console để biết chi tiết.");
+            alert("❌ Lỗi khi lưu vào Database!");
         }
     };
 
-    // 🛠️ HÀM ĐỒNG BỘ DỮ LIỆU
     const updateField = (field, value) => {
         const updatedLoc = { ...selectedLoc, [field]: value };
         setSelectedLoc(updatedLoc);
         setLocations(locations.map(loc => loc.id === updatedLoc.id ? updatedLoc : loc));
     };
 
-    // 🛠️ HÀM: THÊM VĂN PHÒNG MỚI
-    const handleAddNewBranch = () => {
+    const handleAddNewLocation = () => {
         const newId = Date.now(); 
-        const newBranch = {
+        const newLocation = {
             id: newId,
-            branch_name: 'Văn phòng mới',
-            address: 'Chưa cập nhật địa chỉ',
+            branch_id: '', 
+            location_name: 'Khu vực mới', 
+            branch_name: 'Chưa gắn chi nhánh',
+            address: 'Chưa cập nhật',
             latitude: 21.028511, 
             longitude: 105.804817,
             radius_meters: 100,
@@ -96,32 +111,39 @@ const LocationSettings = () => {
             is_active: false,
             gps_status: false,
             wifi_status: false,
-            type: 'Branch',
+            type: 'branch', 
             isNew: true 
         };
-        setLocations([newBranch, ...locations]); 
-        setSelectedLoc(newBranch);
+        setLocations([newLocation, ...locations]); 
+        setSelectedLoc(newLocation);
     };
 
-    // 🛠️ HÀM: XÓA CHI NHÁNH
-    const handleDeleteBranch = () => {
-        if (window.confirm(`Bạn có chắc muốn xóa cấu hình của "${selectedLoc.branch_name}"?`)) {
+    const handleDeleteLocation = async () => {
+        if (selectedLoc.isNew) {
             const newLocations = locations.filter(loc => loc.id !== selectedLoc.id);
             setLocations(newLocations);
             setSelectedLoc(newLocations.length > 0 ? newLocations[0] : null);
+            return;
+        }
+        const confirmText = prompt(`Để xóa, vui lòng gõ chính xác tên: "${selectedLoc.location_name}"`);
+        if (confirmText?.trim() !== selectedLoc.location_name) return alert("Sai tên xác nhận!");
+
+        try {
+            await axios.delete(`http://localhost:5000/api/admin/locations/${selectedLoc.branch_id}/work-location`);
+            alert("✅ Đã xóa cấu hình GPS!");
+            const updatedLoc = { ...selectedLoc, latitude: null, longitude: null, radius_meters: null, gps_status: false };
+            setSelectedLoc(updatedLoc);
+            setLocations(locations.map(loc => loc.id === updatedLoc.id ? updatedLoc : loc));
+        } catch (error) {
+            alert("❌ Lỗi khi xóa!");
         }
     };
 
-    // 🛠️ HÀM: THÊM & XÓA IP WIFI
     const handleAddIp = () => {
-        if (!ipInput.trim()) return;
-        if (selectedLoc.allowed_ips.includes(ipInput.trim())) {
-            alert("Địa chỉ IP này đã được thêm từ trước!");
-            return;
-        }
+        if (!ipInput.trim() || selectedLoc.allowed_ips.includes(ipInput.trim())) return;
         const updatedIps = [...selectedLoc.allowed_ips, ipInput.trim()];
         updateField('allowed_ips', updatedIps);
-        updateField('wifi_status', updatedIps.length > 0); 
+        updateField('wifi_status', true); 
         setIpInput(''); 
     };
 
@@ -131,32 +153,15 @@ const LocationSettings = () => {
         updateField('wifi_status', updatedIps.length > 0);
     };
 
-    // 🛠️ 3. LẤY TỌA ĐỘ GPS (Đã fix lỗi lặp code)
-    // 🛠️ 3. LẤY TỌA ĐỘ GPS (Đã dọn dẹp sạch sẽ lỗi lồng code)
     const handleGetGPS = () => {
-        if (!navigator.geolocation) {
-            return alert("Trình duyệt của bạn không hỗ trợ định vị GPS!");
-        }
-
+        if (!navigator.geolocation) return alert("Không hỗ trợ GPS!");
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                const updatedLoc = {
-                    ...selectedLoc,
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude,
-                    gps_status: true
-                };
-
+                const updatedLoc = { ...selectedLoc, latitude: pos.coords.latitude, longitude: pos.coords.longitude, gps_status: true };
                 setSelectedLoc(updatedLoc);
-                setLocations(prevLocations => 
-                    prevLocations.map(loc => loc.id === updatedLoc.id ? updatedLoc : loc)
-                );
+                setLocations(prevLocations => prevLocations.map(loc => loc.id === updatedLoc.id ? updatedLoc : loc));
             },
-            (error) => {
-                console.error("Lỗi GPS:", error);
-                if (error.code === 1) alert("Lỗi: Bạn đã chặn quyền truy cập vị trí!");
-                else if (error.code === 3) alert("Lỗi: Quá thời gian chờ (Timeout).");
-            },
+            () => alert("Lỗi lấy vị trí!"),
             { enableHighAccuracy: false, timeout: 30000, maximumAge: 0 }
         );
     };
@@ -167,7 +172,7 @@ const LocationSettings = () => {
         </span>
     );
 
-    if (!selectedLoc) return <div style={{ padding: '20px' }}>Đang tải dữ liệu...</div>;
+    if (!selectedLoc) return <div style={{ padding: '20px' }}>Đang tải...</div>;
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#F8FAFC', fontFamily: 'system-ui' }}>
@@ -175,32 +180,32 @@ const LocationSettings = () => {
             <div style={{ padding: '20px 30px', backgroundColor: 'white', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     <div style={{ padding: '12px', backgroundColor: '#F0F9FF', borderRadius: '12px' }}>
-                        <Map color="#0EA5E9" size={24} />
+                        {/* 🔥 BƯỚC 2: Đổi tên Component ở đây */}
+                        <MapIcon color="#0EA5E9" size={24} />
                     </div>
                     <div>
                         <h1 style={{ margin: 0, fontSize: '20px', color: '#0F172A', fontWeight: '700' }}>Cài đặt Khu vực Chấm công</h1>
-                        <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#64748B' }}>Thiết lập tọa độ GPS, bán kính hợp lệ và dải IP mạng cho phép nhân viên Check-in.</p>
+                        <p style={{ margin: '5px 0 0 0', fontSize: '13px', color: '#64748B' }}>Thiết lập GPS và Wifi chấm công cho toàn hệ thống.</p>
                     </div>
                 </div>
-                <button onClick={handleAddNewBranch} style={{ backgroundColor: '#0EA5E9', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(14, 165, 233, 0.2)' }}>
-                    <Plus size={18} /> Thêm văn phòng mới
+                <button onClick={handleAddNewLocation} style={{ backgroundColor: '#0EA5E9', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 2px 4px rgba(14, 165, 233, 0.2)' }}>
+                    <Plus size={18} /> Thêm khu vực mới
                 </button>
             </div>
 
             <div style={{ display: 'flex', flex: 1, padding: '20px', gap: '25px', overflow: 'hidden' }}>
                 
                 <div style={{ width: '280px', overflowY: 'auto', paddingRight: '5px' }}>
-                    <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748B', marginBottom: '15px' }}>DANH SÁCH CHI NHÁNH</p>
+                    <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748B', marginBottom: '15px' }}>DANH SÁCH KHU VỰC</p>
                     {locations.map(loc => (
                         <div key={loc.id} onClick={() => setSelectedLoc(loc)} style={{ padding: '15px', borderRadius: '15px', backgroundColor: 'white', cursor: 'pointer', marginBottom: '12px', border: selectedLoc.id === loc.id ? '1.5px solid #38BDF8' : '1px solid #F1F5F9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', position: 'relative' }}>
                             <div style={{ fontWeight: '700', fontSize: '14px', color: '#1E293B' }}>
-                                {loc.branch_name} {loc.isNew && <span style={{color: '#E11D48', fontSize: '10px'}}>(Mới)</span>}
+                                {loc.location_name} {loc.isNew && <span style={{color: '#E11D48', fontSize: '10px'}}>(Mới)</span>}
                             </div>
                             <div style={{ fontSize: '11px', color: '#94A3B8', margin: '4px 0 10px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <MapPin size={12} /> {loc.address}
+                                <MapPin size={12} /> {loc.branch_id ? `Nhánh: ${loc.branch_name}` : 'Chưa gắn'}
                             </div>
                             <div style={{ display: 'flex' }}><Badge label="GPS" active={loc.gps_status} /><Badge label="Wifi" active={loc.wifi_status} /></div>
-                            {loc.type === 'HQ' && <span style={{ position: 'absolute', top: '15px', right: '15px', fontSize: '9px', backgroundColor: '#0EA5E9', color: 'white', padding: '2px 5px', borderRadius: '4px', fontWeight: 'bold' }}>HQ</span>}
                         </div>
                     ))}
                 </div>
@@ -208,12 +213,19 @@ const LocationSettings = () => {
                 <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '20px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <h2 style={{ fontSize: '20px', margin: 0 }}>Cấu hình: {selectedLoc.branch_name}</h2>
-                            <Edit2 size={16} color="#94A3B8" style={{ cursor: 'pointer' }} onClick={() => {
-                                const newName = prompt("Nhập tên chi nhánh mới:", selectedLoc.branch_name);
-                                if (newName) updateField('branch_name', newName);
-                            }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                            <div style={{ backgroundColor: '#F8FAFC', padding: '8px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+                                <Edit2 size={18} color="#0EA5E9" />
+                            </div>
+                            <input 
+                                type="text"
+                                value={selectedLoc.location_name}
+                                onChange={(e) => updateField('location_name', e.target.value)}
+                                style={{ fontSize: '22px', fontWeight: '700', color: '#0F172A', border: 'none', borderBottom: '2px solid transparent', padding: '4px 0', width: '70%', outline: 'none' }}
+                                onFocus={(e) => e.target.style.borderBottom = '2px solid #38BDF8'}
+                                onBlur={(e) => e.target.style.borderBottom = '2px solid transparent'}
+                                placeholder="Nhập tên khu vực..."
+                            />
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={() => updateField('is_active', !selectedLoc.is_active)}>
                             <div style={{ width: '40px', height: '20px', backgroundColor: selectedLoc.is_active ? '#22C55E' : '#CBD5E1', borderRadius: '20px', position: 'relative', transition: '0.3s' }}>
@@ -225,87 +237,95 @@ const LocationSettings = () => {
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-100">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Loại địa điểm</label>
+                            <select
+                                value={selectedLoc.type}
+                                onChange={(e) => updateField('type', e.target.value)}
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '14px' }}
+                            >
+                                <option value="department_site">Trụ sở chính</option>
+                                <option value="branch">Chi nhánh</option>
+                                <option value="client_site">Đối tác</option>
+                                <option value="wfh">Làm việc tại nhà</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Thuộc chi nhánh quản lý</label>
+                            <select
+                                value={selectedLoc.branch_id || ''}
+                                onChange={(e) => updateField('branch_id', Number(e.target.value))}
+                                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '14px' }}
+                            >
+                                <option value="" disabled>-- Chọn chi nhánh --</option>
+                                {branches.map((branch) => (
+                                    <option key={branch.id} value={branch.id}>{branch.branch_name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
                     <div style={{ display: 'flex', gap: '40px' }}>
                         <div style={{ flex: 1 }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#334155' }}>
                                 <div style={{ backgroundColor: '#F0F9FF', padding: '6px', borderRadius: '8px' }}><CheckCircle size={18} color="#0EA5E9" /></div> 
-                                Kiểm tra tọa độ GPS
+                                Cấu hình GPS
                             </h4>
                             <div style={{ marginTop: '20px' }}>
-    <label style={{ fontSize: '12px', color: '#64748B' }}>Loại địa điểm (Location Type)</label>
-    <select 
-        value={selectedLoc.type || 'branch'} 
-        onChange={(e) => updateField('type', e.target.value)}
-        style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px', backgroundColor: 'white', cursor: 'pointer' }}
-    >
-        <option value="hq">Trụ sở chính (HQ)</option>
-        <option value="branch">Chi nhánh (Branch)</option>
-        <option value="warehouse">Kho bãi (Warehouse)</option>
-    </select>
-</div>
-                            <div style={{ marginTop: '20px' }}>
-                                <label style={{ fontSize: '12px', color: '#64748B' }}>Vĩ độ (Latitude)</label>
-                                <input type="number" value={selectedLoc.latitude} onChange={(e) => updateField('latitude', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px' }} />
+                                <label style={{ fontSize: '12px', color: '#64748B' }}>Vĩ độ</label>
+                                <input type="number" value={selectedLoc.latitude || ''} onChange={(e) => updateField('latitude', Number(e.target.value))} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px' }} />
                             </div>
                             <div style={{ marginTop: '15px' }}>
-                                <label style={{ fontSize: '12px', color: '#64748B' }}>Kinh độ (Longitude)</label>
-                                <input type="number" value={selectedLoc.longitude} onChange={(e) => updateField('longitude', e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px' }} />
+                                <label style={{ fontSize: '12px', color: '#64748B' }}>Kinh độ</label>
+                                <input type="number" value={selectedLoc.longitude || ''} onChange={(e) => updateField('longitude', Number(e.target.value))} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px' }} />
                             </div>
                             <div style={{ display: 'flex', gap: '15px', marginTop: '15px', alignItems: 'flex-end' }}>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ fontSize: '12px', color: '#64748B' }}>Bán kính cho phép (m)</label>
-                                    <div style={{ position: 'relative' }}>
-                                        <input type="number" value={selectedLoc.radius_meters} onChange={(e) => updateField('radius_meters', Number(e.target.value))} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px' }} />
-                                        <span style={{ position: 'absolute', right: '15px', top: '18px', color: '#94A3B8', fontSize: '13px' }}>mét</span>
-                                    </div>
+                                    <label style={{ fontSize: '12px', color: '#64748B' }}>Bán kính (m)</label>
+                                    <input type="number" value={selectedLoc.radius_meters || ''} onChange={(e) => updateField('radius_meters', Number(e.target.value))} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', marginTop: '5px' }} />
                                 </div>
                                 <button onClick={handleGetGPS} style={{ height: '45px', padding: '0 20px', backgroundColor: '#E0F2FE', color: '#0369A1', border: 'none', borderRadius: '10px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                    <Navigation size={16} /> Lấy tọa độ hiện tại
+                                    <Navigation size={16} /> Lấy vị trí
                                 </button>
                             </div>
                         </div>
 
-                        <div style={{ width: '350px', height: '270px', borderRadius: '15px', overflow: 'hidden', marginTop: '45px', border: '1px solid #E2E8F0', zIndex: 1 }}>
-                            <LocationMap lat={selectedLoc.latitude} lng={selectedLoc.longitude} radius={selectedLoc.radius_meters} />
+                        <div style={{ width: '350px', height: '270px', borderRadius: '15px', overflow: 'hidden', marginTop: '45px', border: '1px solid #E2E8F0' }}>
+                            {selectedLoc.latitude && selectedLoc.longitude ? (
+                                <LocationMap lat={selectedLoc.latitude} lng={selectedLoc.longitude} radius={selectedLoc.radius_meters} />
+                            ) : (
+                                <div style={{width: '100%', height: '100%', backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8'}}>
+                                    Chưa có tọa độ
+                                </div>
+                            )}
                         </div>
                     </div>
 
                     <div style={{ marginTop: '40px' }}>
                         <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#334155' }}>
                             <div style={{ backgroundColor: '#F5F3FF', padding: '6px', borderRadius: '8px' }}><Wifi size={18} color="#7C3AED" /></div>
-                            Ràng buộc địa chỉ IP (Wifi Công ty)
+                            IP Wifi (Tùy chọn)
                         </h4>
-                        <p style={{ fontSize: '12px', color: '#94A3B8', margin: '10px 0 20px 0' }}>Chỉ cho phép nhân viên chấm công khi kết nối vào mạng Wifi có địa chỉ IP công khai được liệt kê dưới đây.</p>
-                        
-                        {selectedLoc.allowed_ips.map((ip, i) => (
-                            <div key={i} style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                                <input type="text" value={ip} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', backgroundColor: '#F8FAFC' }} readOnly />
-                                <button onClick={() => handleRemoveIp(ip)} style={{ padding: '10px 15px', backgroundColor: '#FFF1F2', color: '#E11D48', border: 'none', borderRadius: '10px', cursor: 'pointer' }}>
-                                    <Trash2 size={18} />
-                                </button>
-                            </div>
-                        ))}
-                        
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <input 
-                                type="text" 
-                                placeholder="Nhập địa chỉ IPv4 (VD: 14.226.236.155)..." 
-                                value={ipInput}
-                                onChange={(e) => setIpInput(e.target.value)}
-                                onKeyPress={(e) => e.key === 'Enter' && handleAddIp()} 
-                                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }} 
-                            />
-                            <button onClick={handleAddIp} style={{ padding: '0 25px', backgroundColor: '#F5F3FF', color: '#7C3AED', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                                Thêm IP
-                            </button>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>
+                            <input type="text" placeholder="Nhập IPv4..." value={ipInput} onChange={(e) => setIpInput(e.target.value)} style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }} />
+                            <button onClick={handleAddIp} style={{ padding: '0 25px', backgroundColor: '#F5F3FF', color: '#7C3AED', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>Thêm IP</button>
+                        </div>
+                        <div style={{ marginTop: '15px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                            {selectedLoc.allowed_ips.map((ip, i) => (
+                                <div key={i} style={{ backgroundColor: '#F8FAFC', padding: '8px 12px', borderRadius: '8px', border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ fontSize: '13px' }}>{ip}</span>
+                                    <Trash2 size={14} color="#E11D48" style={{ cursor: 'pointer' }} onClick={() => handleRemoveIp(ip)} />
+                                </div>
+                            ))}
                         </div>
                     </div>
 
                     <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #F1F5F9', paddingTop: '30px' }}>
-                        <button onClick={handleDeleteBranch} style={{ padding: '12px 25px', color: '#E11D48', backgroundColor: 'transparent', border: '1px solid #FEE2E2', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>
-                            Xóa khu vực này
+                        <button onClick={handleDeleteLocation} style={{ padding: '12px 25px', color: '#E11D48', backgroundColor: 'transparent', border: '1px solid #FEE2E2', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>
+                            Xóa khu vực
                         </button>
-                        {/* 🛑 NÚT LƯU ĐÃ ĐƯỢC KẾT NỐI SỰ KIỆN Ở ĐÂY */}
                         <button onClick={handleSaveConfig} style={{ padding: '12px 30px', backgroundColor: '#1E293B', color: 'white', border: 'none', borderRadius: '10px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                             <Save size={18} /> Lưu cấu hình
                         </button>

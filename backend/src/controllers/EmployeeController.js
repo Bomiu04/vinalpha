@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const { QueryTypes } = require('sequelize');
 
+
 // ----------------------------
 // GPS helpers
 // ----------------------------
@@ -137,7 +138,7 @@ exports.getAttendanceSummary = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1) Lấy work_location từ chuỗi: employee -> position -> department -> branch -> work_location
+    // 1) Lấy work_location (ĐÃ SỬA LẠI JOIN)
     const locationResult = await db.query(
       `
         SELECT
@@ -153,7 +154,7 @@ exports.getAttendanceSummary = async (req, res) => {
         LEFT JOIN position p ON e.position_id = p.id
         LEFT JOIN department d ON p.department_id = d.id
         LEFT JOIN branch b ON d.branch_id = b.id
-        LEFT JOIN work_location w ON b.work_location_id = w.id
+        LEFT JOIN work_location w ON w.branch_id = b.id
         WHERE e.id = $1
         LIMIT 1
       `,
@@ -244,7 +245,7 @@ exports.checkIn = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu latitude/longitude hợp lệ.' });
     }
 
-    // Lấy work_location
+    // Lấy work_location (ĐÃ SỬA LẠI JOIN)
     const locationResult = await db.query(
       `
         SELECT
@@ -256,7 +257,7 @@ exports.checkIn = async (req, res) => {
         LEFT JOIN position p ON e.position_id = p.id
         LEFT JOIN department d ON p.department_id = d.id
         LEFT JOIN branch b ON d.branch_id = b.id
-        LEFT JOIN work_location w ON b.work_location_id = w.id
+        LEFT JOIN work_location w ON w.branch_id = b.id
         WHERE e.id = $1
         LIMIT 1
       `,
@@ -362,6 +363,7 @@ exports.checkOut = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu latitude/longitude hợp lệ.' });
     }
 
+    // Lấy work_location (ĐÃ SỬA LẠI JOIN)
     const locationResult = await db.query(
       `
         SELECT
@@ -373,7 +375,7 @@ exports.checkOut = async (req, res) => {
         LEFT JOIN position p ON e.position_id = p.id
         LEFT JOIN department d ON p.department_id = d.id
         LEFT JOIN branch b ON d.branch_id = b.id
-        LEFT JOIN work_location w ON b.work_location_id = w.id
+        LEFT JOIN work_location w ON w.branch_id = b.id
         WHERE e.id = $1
         LIMIT 1
       `,
@@ -442,7 +444,84 @@ exports.checkOut = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
 };
+exports.getProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    const result = await db.query(`
+      SELECT 
+        e.id,
+        e.full_name,
+        e.work_email,
+        e.employee_code,
+        e.personal_email,
+        e.phone_number,
+        e.identity_card_number,
+        e.date_of_birth,
+        e.address,
+        e.bank_account_number,
+        e.join_date,
+        p.position_name,
+        d.department_name
+      FROM employee e
+      LEFT JOIN position p ON e.position_id = p.id
+      LEFT JOIN department d ON p.department_id = d.id
+      WHERE e.id = $1
+    `, {
+      bind: [id],
+      type: QueryTypes.SELECT
+    });
+
+    res.json(result[0]);
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi server" });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  try {
+    const { userId, oldPassword, newPassword } = req.body;
+
+    if (!userId || !oldPassword || !newPassword) {
+      return res.status(400).json({ message: "Thiếu dữ liệu" });
+    }
+
+    // 1. Kiểm tra mật khẩu cũ
+    const checkQuery = `
+      SELECT id FROM user_account
+      WHERE employee_id = $1
+      AND password_hash = crypt($2, password_hash)
+    `;
+
+    const user = await db.query(checkQuery, {
+      bind: [userId, oldPassword],
+      type: QueryTypes.SELECT
+    });
+
+    if (user.length === 0) {
+      return res.status(400).json({ message: "Mật khẩu cũ không đúng!" });
+    }
+
+    // 2. Update mật khẩu mới
+    const updateQuery = `
+      UPDATE user_account
+      SET password_hash = crypt($1, gen_salt('bf'))
+      WHERE employee_id = $2
+    `;
+
+    await db.query(updateQuery, {
+      bind: [newPassword, userId]
+    });
+
+    return res.json({ message: "Đổi mật khẩu thành công!" });
+
+  } catch (error) {
+    console.error("Lỗi changePassword:", error);
+    return res.status(500).json({ message: "Lỗi server" });
+  }
+};
 // ----------------------------
 // Manager: giám sát nhân viên check-in trong zone
 // ----------------------------
@@ -450,7 +529,7 @@ exports.getManagerZoneAttendance = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1) Xác định zone làm việc của quản lý (đang chuẩn hóa về HQ tạm)
+    // 1) Xác định zone làm việc của quản lý (ĐÃ SỬA LẠI JOIN)
     const managerLocationResult = await db.query(
       `
         SELECT
@@ -466,7 +545,7 @@ exports.getManagerZoneAttendance = async (req, res) => {
         LEFT JOIN position p ON e.position_id = p.id
         LEFT JOIN department d ON p.department_id = d.id
         LEFT JOIN branch b ON d.branch_id = b.id
-        LEFT JOIN work_location w ON b.work_location_id = w.id
+        LEFT JOIN work_location w ON w.branch_id = b.id
         WHERE e.id = $1
         LIMIT 1
       `,
@@ -573,4 +652,6 @@ exports.getManagerZoneAttendance = async (req, res) => {
     console.error('getManagerZoneAttendance error:', error);
     return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message });
   }
+
+  
 };
