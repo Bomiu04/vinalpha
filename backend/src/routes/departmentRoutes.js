@@ -109,7 +109,7 @@ router.post('/', async (req, res) => {
       `,
       {
         replacements: {
-          code: department_code || `PB_${Date.now()}`, // 🔥 chống null
+          code: department_code || `PB_${Date.now()}`, // chống null
           name: department_name,
           branch: branch_id || null,
           manager: manager_id || null,
@@ -128,7 +128,7 @@ router.post('/', async (req, res) => {
     console.error("🔥 ERROR:", err);
 
     res.status(500).json({
-      message: err.message // 👈 trả lỗi thật về FE
+      message: err.message // trả lỗi thật về FE
     });
   }
 });

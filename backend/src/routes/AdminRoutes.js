@@ -4,7 +4,7 @@ const { getAllUsers, createUser, updateUser } = require('../controllers/AdminCon
 const adminController = require('../controllers/AdminController');
 const locationController = require('../controllers/locationController');
 router.get('/users', getAllUsers); 
-router.post('/users', createUser); // <-- CHÍNH LÀ DÒNG NÀY ĐANG THIẾU
+router.post('/users', createUser); 
 router.put('/users/:id', updateUser);
 router.get('/employees-no-account', adminController.getEmployeesWithoutAccount);
 router.get('/locations', locationController.getLocations);
