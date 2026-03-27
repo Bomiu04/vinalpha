@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from "react-hot-toast";
 
 // ===== AUTH =====
 import Login from './pages/Login';
@@ -46,6 +47,20 @@ import MainLayout from './layouts/MainLayout';
 function App() {
   return (
     <BrowserRouter>
+
+      {/* 🔥 TOAST GLOBAL */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            borderRadius: '12px',
+            background: '#333',
+            color: '#fff',
+          },
+        }}
+      />
+
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         
@@ -64,28 +79,29 @@ function App() {
           <Route path="/Admin/settings" element={<AdminSettings />} />
           <Route path="/Admin/LocationSettings" element={<LocationSettings />} />
 
-          {/* ===== GIÁM ĐỐC (FIX Ở ĐÂY) ===== */}
+          {/* ===== GIÁM ĐỐC ===== */}
           <Route path="/GiamDoc/dashboard" element={<GiamDocDashboard />} />
           <Route path="/GiamDoc/departments" element={<Departments />} />
           <Route path="/GiamDoc/departments/create" element={<DepartmentCreate />} />
+
+          {/* ROUTE CỤ THỂ */}
+          <Route path="/GiamDoc/departments/edit/:id" element={<EditDepartment />} />
+          <Route path="/GiamDoc/departments/delete/:id" element={<DeleteDepartment />} />
+
+          {/* ROUTE CHUNG */}
           <Route path="/GiamDoc/departments/:id" element={<DepartmentDetail />} />
+
           <Route path="/GiamDoc/contracts" element={<Contracts />} />
           <Route path="/GiamDoc/branches" element={<Branches />} />
           <Route path="/GiamDoc/positions" element={<Positions />} />
           <Route path="/GiamDoc/approvals" element={<Approvals />} />
-          <Route path="/GiamDoc/departments/edit/:id" element={<EditDepartment />}/>
-          <Route path="/GiamDoc/departments/delete/:id" element={<DeleteDepartment />} />
-          
-          
 
           {/* ===== QUẢN LÝ ===== */}
           <Route path="/QuanLy/dashboard" element={<ManagerDashboard />} />
           <Route path="/QuanLy/checkin" element={<ManagerCheckIn />} />
           <Route path="/QuanLy/team-attendance" element={<TeamAttendance />} />
           <Route path="/QuanLy/team-approvals" element={<TeamApprovals />} />
-          {/* 2. THÊM DÒNG NÀY: */}
           <Route path="/QuanLy/notifications" element={<NotificationPage />} />
-          
 
           {/* ===== NHÂN VIÊN ===== */}
           <Route path="/NhanVien/dashboard" element={<EmployeeDashboard />} />
@@ -99,6 +115,7 @@ function App() {
 
         {/* ===== 404 ===== */}
         <Route path="*" element={<Navigate to="/login" replace />} />
+
       </Routes>
     </BrowserRouter>
   );
