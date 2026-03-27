@@ -39,6 +39,7 @@ import CheckIn from './pages/NhanVien/CheckIn';
 import Payroll from './pages/NhanVien/Payroll';
 import Requests from './pages/NhanVien/Requests';
 import Profile from './pages/NhanVien/Profile';
+import Contract from "./pages/NhanVien/Contract";
 
 // ===== LAYOUT =====
 import MainLayout from './layouts/MainLayout';
@@ -94,6 +95,7 @@ function App() {
           <Route path="/NhanVien/payroll" element={<Payroll />} />
           <Route path="/NhanVien/requests" element={<Requests />} />
           <Route path="/NhanVien/profile" element={<Profile />} />
+          <Route path="/NhanVien/contracts" element={<Contract />} />
           
         </Route>
 
