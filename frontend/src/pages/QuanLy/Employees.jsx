@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Edit2, Trash2, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { Search, Plus, Eye, Edit2, Trash2, ChevronLeft, ChevronRight, Users, AlertTriangle, Loader2 } from 'lucide-react';
+import EmployeeDetail from './EmployeeDetail';
+import EditEmployee from './EditEmployee';
+import AddEmployee from './AddEmployee';
 import axios from 'axios';
 
 export default function EmployeeManagement() {
@@ -14,20 +17,22 @@ export default function EmployeeManagement() {
   // States cho Phân trang
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  // State lưu nhân viên đang xem, chỉnh sửa & thêm mới
+  const [viewingEmployee, setViewingEmployee] = useState(null);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // 🚀 MÔ PHỎNG FETCH DATA TỪ BACKEND
-  // 🚀 FETCH DATA TỪ BACKEND
   const fetchEmployees = async () => {
     setLoading(true);
     try {
-      // Gọi API thật xuống Backend (nhớ truyền token nếu Backend yêu cầu)
       const res = await axios.get('http://localhost:5000/api/manager/employees', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      
-      // Đổ data vào State
       setEmployees(res.data);
-      
     } catch (error) {
       console.error("Lỗi khi tải danh sách nhân viên:", error);
       setEmployees([]);
@@ -40,7 +45,7 @@ export default function EmployeeManagement() {
     fetchEmployees();
   }, []);
 
-  // 🎨 HÀM XỬ LÝ MÀU SẮC TRẠNG THÁI (Dựa theo thiết kế UI và ENUM database)
+  // 🎨 HÀM XỬ LÝ MÀU SẮC TRẠNG THÁI
   const getStatusStyle = (status) => {
     switch (status) {
       case 'active':
@@ -51,6 +56,25 @@ export default function EmployeeManagement() {
         return { bg: 'bg-gray-100', text: 'text-gray-500', dot: 'bg-gray-400' };
       default:
         return { bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400' };
+    }
+  };
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await axios.delete(`http://localhost:5000/api/manager/employees/${employeeToDelete.id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      alert('Đã xóa nhân viên thành công!');
+      
+      // Đóng popup, reset chữ và load lại danh sách
+      setEmployeeToDelete(null);
+      setDeleteConfirmText('');
+      fetchEmployees();
+    } catch (error) {
+      console.error('Lỗi khi xóa:', error);
+      alert('Có lỗi xảy ra khi xóa nhân viên này!');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -72,6 +96,54 @@ export default function EmployeeManagement() {
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentEmployees = filteredEmployees.slice(indexOfFirst, indexOfLast);
 
+  // ==========================================================
+  // 1. NẾU ĐANG BẤM NÚT "THÊM NHÂN VIÊN" -> HIỂN THỊ FORM THÊM
+  // ==========================================================
+  if (isAdding) {
+    return (
+      <AddEmployee 
+        onBack={() => setIsAdding(false)} 
+        onSaveSuccess={() => {
+          setIsAdding(false);
+          fetchEmployees(); // Load lại danh sách sau khi thêm thành công
+        }} 
+      />
+    );
+  }
+
+  // ==========================================================
+  // 2. NẾU ĐANG BẤM NÚT "SỬA" -> HIỂN THỊ FORM CHỈNH SỬA
+  // ==========================================================
+  if (editingEmployee) {
+    return (
+      <EditEmployee 
+        employee={editingEmployee} 
+        onBack={() => setEditingEmployee(null)} 
+        onSaveSuccess={() => {
+          setEditingEmployee(null); // Tắt form
+          setViewingEmployee(null); // Trở về danh sách
+          fetchEmployees(); // Kéo lại data mới nhất từ DB
+        }} 
+      />
+    );
+  }
+
+  // ==========================================================
+  // 3. NẾU ĐANG BẤM NÚT "XEM" -> HIỂN THỊ TRANG CHI TIẾT
+  // ==========================================================
+  if (viewingEmployee) {
+    return (
+      <EmployeeDetail 
+        employee={viewingEmployee} 
+        onBack={() => setViewingEmployee(null)} 
+        onEdit={() => setEditingEmployee(viewingEmployee)} // Cho phép bấm nút "Edit" từ trong trang Chi tiết
+      />
+    );
+  }
+
+  // ==========================================================
+  // 4. MẶC ĐỊNH -> HIỂN THỊ BẢNG DANH SÁCH
+  // ==========================================================
   return (
     <div className="p-6 bg-slate-50 min-h-screen font-sans">
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
@@ -88,7 +160,11 @@ export default function EmployeeManagement() {
             </div>
           </div>
           
-          <button className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm shadow-cyan-200">
+          {/* 👉 ĐÃ GẮN SỰ KIỆN onClick VÀO ĐÂY */}
+          <button 
+            onClick={() => setIsAdding(true)} 
+            className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm shadow-cyan-200"
+          >
             <Plus size={18} /> Thêm nhân viên
           </button>
         </div>
@@ -171,13 +247,27 @@ export default function EmployeeManagement() {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex justify-center gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <button className="w-8 h-8 rounded-full bg-cyan-50 flex items-center justify-center text-cyan-500 hover:bg-cyan-500 hover:text-white transition-colors" title="Xem chi tiết">
+                        
+                        {/* NÚT XEM */}
+                        <button 
+                          onClick={() => setViewingEmployee(emp)} 
+                          className="w-8 h-8 rounded-full bg-cyan-50 flex items-center justify-center text-cyan-500 hover:bg-cyan-500 hover:text-white transition-colors" 
+                          title="Xem chi tiết"
+                        >
                           <Eye size={15} />
                         </button>
-                        <button className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 hover:bg-emerald-500 hover:text-white transition-colors" title="Chỉnh sửa">
+
+                        {/* NÚT SỬA */}
+                        <button 
+                          onClick={() => setEditingEmployee(emp)} 
+                          className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500 hover:bg-emerald-500 hover:text-white transition-colors" 
+                          title="Chỉnh sửa"
+                        >
                           <Edit2 size={15} />
                         </button>
-                        <button className="w-8 h-8 rounded-full bg-pink-50 flex items-center justify-center text-pink-500 hover:bg-pink-500 hover:text-white transition-colors" title="Xóa">
+
+                        {/* NÚT XÓA */}
+                        <button onClick={() => setEmployeeToDelete(emp)} className="w-8 h-8 rounded-full bg-pink-50 flex items-center justify-center text-pink-500 hover:bg-pink-500 hover:text-white transition-colors" title="Xóa">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -233,7 +323,54 @@ export default function EmployeeManagement() {
             </button>
           </div>
         </div>
+            {employeeToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-slate-100 animate-in fade-in zoom-in duration-200">
+              <div className="flex items-center gap-3 text-red-600 mb-4">
+                <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center">
+                  <AlertTriangle size={20} />
+                </div>
+                <h3 className="text-xl font-bold">Cảnh báo xóa nhân viên</h3>
+              </div>
+              
+              <p className="text-slate-600 text-sm mb-4 leading-relaxed">
+                Bạn đang thao tác xóa nhân viên <span className="font-bold text-slate-800">{employeeToDelete.name}</span>. 
+                Hành động này sẽ xóa toàn bộ hồ sơ và tài khoản đăng nhập của nhân viên này, và <span className="font-bold text-red-500">không thể hoàn tác</span>.
+              </p>
 
+              <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
+                  Vui lòng nhập chữ <span className="font-bold text-red-600 select-none">delete</span> để xác nhận:
+                </label>
+                <input 
+                  type="text" 
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-red-400 focus:ring-1 focus:ring-red-400 focus:outline-none transition-all"
+                  placeholder="Nhập chữ delete..."
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button 
+                  onClick={() => { setEmployeeToDelete(null); setDeleteConfirmText(''); }}
+                  className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Hủy bỏ
+                </button>
+                <button 
+                  onClick={handleDelete}
+                  disabled={deleteConfirmText.toLowerCase() !== 'delete' || isDeleting}
+                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  Xác nhận xóa
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

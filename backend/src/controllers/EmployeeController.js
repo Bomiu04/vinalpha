@@ -349,9 +349,7 @@ distance_meters: Number(distanceMeters.toFixed(2))
   }
 };
 
-// ----------------------------
-// Check-out
-// ----------------------------
+
 exports.checkOut = async (req, res) => {
   try {
     const { id } = req.params;
@@ -535,9 +533,7 @@ exports.changePassword = async (req, res) => {
     return res.status(500).json({ message: "Lỗi server" });
   }
 };
-// ----------------------------
-// Manager: giám sát nhân viên check-in trong zone
-// ----------------------------
+
 exports.getManagerZoneAttendance = async (req, res) => {
   try {
     const { id } = req.params;
