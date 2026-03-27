@@ -91,7 +91,7 @@ exports.getDashboard = async (req, res) => {
 
     // 1. Nhân viên
    const employeeResult = await db.query(
-  `SELECT full_name FROM employee WHERE id = $1`,
+`SELECT full_name FROM employee WHERE id = $1`,
   {
     bind: [id],
     type: QueryTypes.SELECT
@@ -199,7 +199,7 @@ exports.getAttendanceSummary = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: {
-        server_date: new Date().toISOString().slice(0, 10),
+server_date: new Date().toISOString().slice(0, 10),
         workLocation: {
           work_location_id: workLocation.work_location_id,
           location_name: workLocation.location_name,
@@ -277,7 +277,7 @@ exports.checkIn = async (req, res) => {
         return res.status(403).json({
           success: false,
           message: 'Bạn đang ở ngoài vùng GPS cho phép.',
-          distance_meters: Number(distanceMeters.toFixed(2))
+distance_meters: Number(distanceMeters.toFixed(2))
         });
       }
     }
@@ -370,7 +370,7 @@ exports.checkOut = async (req, res) => {
           w.id AS work_location_id,
           w.latitude,
           w.longitude,
-          w.radius_meters
+w.radius_meters
         FROM employee e
         LEFT JOIN position p ON e.position_id = p.id
         LEFT JOIN department d ON p.department_id = d.id
@@ -595,7 +595,7 @@ exports.getManagerZoneAttendance = async (req, res) => {
 
     const attendees = teamAttendanceResult
       .map((row) => {
-        const lat = Number(row.live_latitude);
+const lat = Number(row.live_latitude);
         const lng = Number(row.live_longitude);
         const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
 
