@@ -10,6 +10,7 @@ app.use(cors());
 // Tăng limit để nhận được nội dung thông báo có chứa ảnh (Base64)
 app.use(express.json({ limit: '100mb' })); 
 app.use(express.urlencoded({ limit: '100mb', extended: true, parameterLimit: 100000 }));
+app.use('/uploads', express.static('uploads'));
 
 // --- 2. IMPORT ROUTES ---
 const authRoutes = require('./routes/authRoutes');
