@@ -9,4 +9,6 @@ router.post('/employees', managementController.createEmployee);
 router.delete('/employees/:id', managementController.deleteEmployee);
 router.get('/dashboard/present', managementController.getPresentEmployees);
 router.get('/dashboard/absent', managementController.getAbsentEmployees);
+
+// =================================================================
 module.exports = router;

@@ -20,7 +20,7 @@ export default function PositionManagement() {
   const fetchPositions = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/giamdoc/positions', {
+      const res = await axios.get('http://localhost:5000/api/director/positions', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setPositions(res.data);
@@ -65,7 +65,7 @@ export default function PositionManagement() {
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
-      await axios.delete(`http://localhost:5000/api/giamdoc/positions/${positionToDelete.id}`, {
+      await axios.delete(`http://localhost:5000/api/director/positions/${positionToDelete.id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       alert('Đã xóa chức vụ thành công!');

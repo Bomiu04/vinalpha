@@ -7,17 +7,15 @@ const VerifyOTP = () => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // Lấy email từ màn hình trước truyền sang
   const email = location.state?.email || '';
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(''); // Biến lưu lỗi nếu nhập sai mã
-  const [countdown, setCountdown] = useState(60); // Đếm ngược 60 giây
+  const [error, setError] = useState(''); 
+  const [countdown, setCountdown] = useState(60); 
   
   const inputRefs = useRef([]);
 
-  // Xử lý đếm ngược thời gian gửi lại mã
   useEffect(() => {
     let timer;
     if (countdown > 0) {
@@ -26,7 +24,6 @@ const VerifyOTP = () => {
     return () => clearInterval(timer);
   }, [countdown]);
 
-  // Xử lý khi gõ từng số
   const handleChange = (element, index) => {
     if (isNaN(element.value)) return;
 
@@ -39,16 +36,35 @@ const VerifyOTP = () => {
     }
   };
 
-  // Xử lý phím Backspace (Xóa lùi)
   const handleKeyDown = (e, index) => {
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1].focus();
     }
   };
 
-  // ==========================================
-  // HÀM GỌI API XÁC THỰC MÃ OTP
-  // ==========================================
+  // 👉 HÀM XỬ LÝ SỰ KIỆN PASTE
+  const handlePaste = (e) => {
+    e.preventDefault(); 
+    const pastedData = e.clipboardData.getData('text');
+    
+    // Kiểm tra xem chuỗi dán vào có phải là số không
+    if (!/^\d+$/.test(pastedData)) return;
+
+    // Cắt lấy 6 số đầu tiên và rải đều vào mảng
+    const pastedCode = pastedData.slice(0, 6).split('');
+    const newOtp = [...otp];
+
+    pastedCode.forEach((char, index) => {
+      newOtp[index] = char;
+    });
+
+    setOtp(newOtp);
+
+    // Tự động nhảy con trỏ chuột đến ô hợp lý
+    const nextFocusIndex = pastedCode.length < 6 ? pastedCode.length : 5;
+    inputRefs.current[nextFocusIndex].focus();
+  };
+
   const handleVerify = async (e) => {
     e.preventDefault();
     const otpCode = otp.join('');
@@ -59,10 +75,9 @@ const VerifyOTP = () => {
     }
 
     setIsLoading(true);
-    setError(''); // Reset lỗi
+    setError(''); 
 
     try {
-      // Gọi API xuống Backend
       const response = await fetch('http://localhost:5000/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -73,14 +88,8 @@ const VerifyOTP = () => {
 
       if (data.success) {
         setIsLoading(false);
-        
-        // 1. Hiển thị thông báo thành công
-        alert('🎉 Xác thực OTP THÀNH CÔNG! Đang chuyển sang trang Đổi mật khẩu...');
-        
-        // 2. Chuyển sang trang Đổi mật khẩu (Mang theo email)
         navigate('/reset-password', { state: { email: email } }); 
       } else {
-        // Lỗi: Sai mã hoặc hết hạn
         setError(data.message);
         setIsLoading(false);
       }
@@ -91,11 +100,11 @@ const VerifyOTP = () => {
     }
   };
 
-const handleResend = async () => {
-    setError(''); // Xóa lỗi cũ nếu có
+  const handleResend = async () => {
+    setError(''); 
+    setIsLoading(true); // 👉 Đã sửa lỗi syntax chỗ này
 
     try {
-      // Gọi lại API forgot-password y hệt như màn hình trước
       const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
         method: 'POST',
         headers: {
@@ -107,17 +116,17 @@ const handleResend = async () => {
       const data = await response.json();
 
       if (data.success) {
-        // Nếu API báo thành công, hiện thông báo và bắt đầu đếm ngược lại
         alert('Mã OTP mới đã được gửi! Vui lòng kiểm tra lại email của bạn.');
         setCountdown(60); 
       } else {
-        // Nếu có lỗi từ server
         setError(data.message || 'Lỗi khi gửi lại mã OTP');
       }
     } catch (err) {
       console.error(err);
       setError('Không thể kết nối đến máy chủ để gửi lại mã!');
-    }setIsLoading(true);
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -133,7 +142,6 @@ const handleResend = async () => {
           </p>
         </div>
 
-        {/* --- HIỂN THỊ LỖI MÀU ĐỎ NẾU NHẬP SAI --- */}
         {error && (
           <div style={{ marginBottom: '16px', color: '#dc2626', backgroundColor: '#fef2f2', padding: '12px', borderRadius: '8px', fontSize: '14px', textAlign: 'center' }}>
             {error}
@@ -152,6 +160,7 @@ const handleResend = async () => {
                 ref={(el) => (inputRefs.current[index] = el)}
                 onChange={(e) => handleChange(e.target, index)}
                 onKeyDown={(e) => handleKeyDown(e, index)}
+                onPaste={handlePaste} // 👉 Đã thêm sự kiện ở đây
                 onFocus={(e) => e.target.select()}
                 autoFocus={index === 0}
               />

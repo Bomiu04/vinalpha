@@ -160,7 +160,6 @@ export default function EmployeeManagement() {
             </div>
           </div>
           
-          {/* 👉 ĐÃ GẮN SỰ KIỆN onClick VÀO ĐÂY */}
           <button 
             onClick={() => setIsAdding(true)} 
             className="bg-cyan-500 hover:bg-cyan-600 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-sm shadow-cyan-200"

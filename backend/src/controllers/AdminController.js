@@ -8,7 +8,9 @@ const getAllUsers = async (req, res) => {
   try {
     const query = `
       SELECT 
-        ua.id, e.full_name, e.work_email as email, ua.username, ua.role_code, ua.status 
+        ua.id, e.full_name,
+        COALESCE(e.personal_email, e.work_email) AS email,
+        ua.username, ua.role_code, ua.status 
       FROM user_account ua
       LEFT JOIN employee e ON e.id = ua.employee_id
       ORDER BY CASE WHEN ua.role_code = 'ADMIN' THEN 1 ELSE 2 END, ua.id DESC
@@ -151,8 +153,39 @@ const getEmployeesWithoutAccount = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi máy chủ" });
   }
 };
+const adminForceResetPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const temporaryPassword = 'Welcome@' + Math.floor(1000 + Math.random() * 9000);
 
+    // 1. Cập nhật Pass mới và Bật cờ bắt buộc đổi mật khẩu
+    const updateQuery = `
+      UPDATE user_account 
+      SET password_hash = crypt(:pass, gen_salt('bf')),
+          require_pass_change = true
+      WHERE employee_id = (SELECT id FROM employee WHERE personal_email = :email LIMIT 1)
+    `;
+
+    await db.query(updateQuery, { 
+      replacements: { pass: temporaryPassword, email: email } 
+    });
+
+    // 2. Lấy thông tin để gửi mail
+    const [user] = await db.query(
+      "SELECT full_name, username FROM employee e JOIN user_account ua ON e.id = ua.employee_id WHERE e.personal_email = :email",
+      { replacements: { email }, type: db.QueryTypes.SELECT }
+    );
+
+    // 3. Gửi email cấp mật khẩu tạm thời
+    await sendAccountEmail(email, user.full_name, user.username, temporaryPassword);
+
+    res.status(200).json({ success: true, message: 'Đã reset và bật cờ đổi mật khẩu thành công!' });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
+  }
+};
 
 // module.exports = { getAllUsers, createUser, updateUser, getEmployeesWithoutAccount };
 
-module.exports = { getAllUsers, createUser, updateUser, getEmployeesWithoutAccount };
+module.exports = { getAllUsers, createUser, updateUser, getEmployeesWithoutAccount ,adminForceResetPassword};
