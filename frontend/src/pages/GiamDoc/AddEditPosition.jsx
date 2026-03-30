@@ -8,7 +8,7 @@ export default function AddEditPosition({ position, onBack, onSaveSuccess }) {
     position_code: '',
     position_name: '',
     department_id: '',
-    level: 'fresher',
+    level: 'employee',
     base_salary_min: ''
   });
   
@@ -19,7 +19,7 @@ export default function AddEditPosition({ position, onBack, onSaveSuccess }) {
     // Kéo danh sách phòng ban từ API có sẵn
     const fetchDepartments = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/giamdoc/form-options`, {
+        const res = await axios.get(`http://localhost:5000/api/director/form-options`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setDepartments(res.data.departments);
@@ -31,12 +31,20 @@ export default function AddEditPosition({ position, onBack, onSaveSuccess }) {
 
     // Nếu là Edit thì nạp data cũ
     if (isEdit) {
+      const normalizedLevel = (() => {
+        const lvl = String(position.level || '').toLowerCase();
+        if (['manager'].includes(lvl)) return 'manager';
+        if (['director'].includes(lvl)) return 'director';
+        // Chuyển mọi cấp độ staff hiện có thành employee
+        return 'employee';
+      })();
+
       setFormData({
         position_code: position.code || '',
         position_name: position.name || '',
         // Tìm ID phòng ban dựa vào tên (Vì API getPositions trả về tên, lý tưởng nhất là API getPositions trả về cả department_id)
         department_id: position.department_id || '', 
-        level: position.level || 'fresher',
+        level: normalizedLevel,
         base_salary_min: position.baseSalaryMin || ''
       });
     }
@@ -56,10 +64,10 @@ export default function AddEditPosition({ position, onBack, onSaveSuccess }) {
       const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
       
       if (isEdit) {
-        await axios.put(`http://localhost:5000/api/giamdoc/positions/${position.id}`, payload, { headers });
+        await axios.put(`http://localhost:5000/api/director/positions/${position.id}`, payload, { headers });
         alert('Cập nhật chức vụ thành công!');
       } else {
-        await axios.post(`http://localhost:5000/api/giamdoc/positions`, payload, { headers });
+        await axios.post(`http://localhost:5000/api/director/positions`, payload, { headers });
         alert('Thêm chức vụ mới thành công!');
       }
       onSaveSuccess();
@@ -116,12 +124,8 @@ export default function AddEditPosition({ position, onBack, onSaveSuccess }) {
               <label className="text-sm font-semibold text-slate-700">Cấp bậc (Level) <span className="text-red-500">*</span></label>
               <select name="level" value={formData.level} onChange={handleChange} required
                 className="px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:border-cyan-400 focus:outline-none">
-                {/* Lấy đúng ENUM trong database */}
-                <option value="intern">Intern / Thực tập sinh</option>
-                <option value="fresher">Fresher / Nhân viên mới</option>
-                <option value="junior">Junior / Chuyên viên</option>
-                <option value="middle">Middle / Chuyên viên chính</option>
-                <option value="senior">Senior / Chuyên viên cao cấp</option>
+                {/* Chỉ 3 cấp độ tương ứng role: employee/manager/director */}
+                <option value="employee">Employee / Nhân viên</option>
                 <option value="manager">Manager / Quản lý</option>
                 <option value="director">Director / Giám đốc</option>
               </select>

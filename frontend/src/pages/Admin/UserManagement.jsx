@@ -9,7 +9,7 @@ const UserManagement = () => {
   // --- STATES ---
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [isSendingReset, setIsSendingReset] = useState(false);
   // Điều hướng màn hình: 'LIST' | 'CREATE' | 'EDIT'
   const [currentView, setCurrentView] = useState('LIST'); 
   // Lưu trữ user đang được chọn để edit
@@ -46,6 +46,38 @@ const UserManagement = () => {
   const handleBackToList = () => {
     setCurrentView('LIST');
     setSelectedUser(null);
+  };
+    const handleSendResetPassword = async () => {
+    if (!selectedUser?.email) {
+      alert('Không tìm thấy email của nhân viên này!');
+      return;
+    }
+
+    const confirmSend = window.confirm(`Xác nhận gửi yêu cầu cấp lại mật khẩu đến email: ${selectedUser.email}?`);
+    if (!confirmSend) return;
+
+    setIsSendingReset(true);
+    try {
+      // Tận dụng lại API forgot-password đã viết ở phần trước
+      const response = await fetch('http://localhost:5000/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: selectedUser.email }), 
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(`🎉 Đã gửi email hướng dẫn đổi mật khẩu tới ${selectedUser.email} thành công!`);
+      } else {
+        alert(data.message || 'Lỗi khi gửi email!');
+      }
+    } catch (error) {
+      console.error('Lỗi API gửi reset password:', error);
+      alert('Không thể kết nối đến máy chủ!');
+    } finally {
+      setIsSendingReset(false);
+    }
   };
 
   // =========================================================================
@@ -324,8 +356,21 @@ const UserManagement = () => {
           </div>
           <div className="form-group mb-0">
             <label className="form-label">Mật khẩu</label>
-            <button className="btn-outline-purple w-full h-11 flex justify-center items-center gap-2">
-              <Mail size={16} /> Gửi link Reset mật khẩu
+            <button 
+              className="btn-outline-purple w-full h-11 flex justify-center items-center gap-2"
+              onClick={handleSendResetPassword}
+              disabled={isSendingReset}
+            >
+              {isSendingReset ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} /> 
+                  Đang gửi email...
+                </>
+              ) : (
+                <>
+                  <Mail size={16} /> Gửi yêu cầu Reset mật khẩu
+                </>
+              )}
             </button>
           </div>
         </div>

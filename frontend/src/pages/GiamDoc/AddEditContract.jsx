@@ -26,7 +26,7 @@ export default function AddEditContract({ contract, onBack, onSaveSuccess }) {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/giamdoc/contract-form-options`, {
+        const res = await axios.get(`http://localhost:5000/api/director/contract-form-options`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setEmployees(res.data.employees);
@@ -97,10 +97,10 @@ export default function AddEditContract({ contract, onBack, onSaveSuccess }) {
       const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
       
       if (isEdit) {
-        await axios.put(`http://localhost:5000/api/giamdoc/contracts/${contract.id}`, payload, { headers });
+        await axios.put(`http://localhost:5000/api/director/contracts/${contract.id}`, payload, { headers });
         alert('Cập nhật hợp đồng thành công!');
       } else {
-        await axios.post(`http://localhost:5000/api/giamdoc/contracts`, payload, { headers });
+        await axios.post(`http://localhost:5000/api/director/contracts`, payload, { headers });
         alert('Tạo hợp đồng mới thành công!');
       }
       onSaveSuccess();

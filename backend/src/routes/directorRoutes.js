@@ -25,4 +25,16 @@ router.post("/branch", ctrl.createBranch);           // Tạo chi nhánh mới
 router.put("/branches/:id", ctrl.updateBranch);      // Cập nhật chi nhánh
 router.delete("/branches/:id", ctrl.deleteBranch);   // Xoá chi nhánh
 
+// ===== CHỨC VỤ =====
+router.get('/positions', ctrl.getPositions);
+router.post('/positions', ctrl.createPosition);
+router.put('/positions/:id', ctrl.updatePosition);
+router.delete('/positions/:id', ctrl.deletePosition);
+router.get('/form-options', ctrl.getFormOptions); // Bổ sung Form options cho Giám đốc
+
+// ===== HỢP ĐỒNG LAO ĐỘNG =====
+router.get('/contracts', ctrl.getContracts);
+router.get('/contract-form-options', ctrl.getContractFormOptions);
+router.put('/contracts/:id', ctrl.updateContract);
+router.post('/contracts', ctrl.createContract);
 module.exports = router;

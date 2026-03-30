@@ -203,18 +203,19 @@ const createEmployee = async (req, res) => {
       full_name, phone_number, personal_email, address, 
       identity_card_number, date_of_birth, gender, 
       bank_account_number, bank_name, status,
-      work_email, position_id, department_id, join_date, direct_manager_id,
-      username, password, send_email // 👉 Lấy thêm send_email từ body
+      work_email, position_id, join_date, direct_manager_id, // 👉 Đã xóa department_id ở đây
+      username, password, send_email 
     } = req.body;
 
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const employee_code = `NV-${new Date().getFullYear()}-${randomSuffix}`;
 
+    // 👉 Đã xóa hoàn toàn department_id khỏi câu Query
     const insertEmpQuery = `
       INSERT INTO employee (
         employee_code, full_name, phone_number, personal_email, address, 
         identity_card_number, date_of_birth, gender, bank_account_number, bank_name, 
-        status, work_email, position_id, department_id, join_date, direct_manager_id
+        status, work_email, position_id, join_date, direct_manager_id
       ) VALUES (
         :employee_code, :full_name, :phone_number, :personal_email, :address, 
         :identity_card_number, :date_of_birth, :gender, :bank_account_number, :bank_name, 
@@ -236,7 +237,7 @@ const createEmployee = async (req, res) => {
         status: status || 'active',
         work_email: work_email || null,
         position_id: position_id || null, 
-        department_id: department_id || null,
+  
         join_date: join_date || null,
         direct_manager_id: direct_manager_id || null
       },
@@ -275,14 +276,18 @@ const createEmployee = async (req, res) => {
     // ==========================================
     // 5. SAU KHI GHI XONG MỚI BẮT ĐẦU GỬI EMAIL
     // ==========================================
-    if (send_email === true || send_email === 'true') {
+if (send_email === true || send_email === 'true') {
       try {
-        await sendAccountEmail({
-          email: username,
-          subject: 'Thông tin tài khoản đăng nhập hệ thống',
-          message: `Xin chào ${full_name},\n\nTài khoản của bạn đã được tạo thành công:\n- Tên đăng nhập: ${username}\n- Mật khẩu: ${password}\n\nVui lòng đổi mật khẩu trong lần đăng nhập đầu tiên để bảo mật tài khoản.`
-        });
-        console.log(`Đã gửi email cấp tài khoản tới: ${username}`);
+        const targetEmail = personal_email || work_email || username; // Dự phòng trường hợp user không nhập email cá nhân
+
+        await sendAccountEmail(
+          targetEmail, 
+          full_name, 
+          username, 
+          password
+        );
+        
+        console.log(`Đã gửi email cấp tài khoản tới: ${targetEmail}`);
         
         return res.status(201).json({ success: true, message: 'Thêm nhân viên và gửi email cấp tài khoản thành công!' });
       } catch (emailError) {
@@ -299,9 +304,11 @@ const createEmployee = async (req, res) => {
     return res.status(201).json({ success: true, message: 'Thêm nhân viên và cấp tài khoản thành công!' });
 
   } catch (error) {
-    // Chỉ Rollback khi lỗi CƠ SỞ DỮ LIỆU (Trùng mail, thiếu trường...)
-    if (!t.finished) {
-      await t.rollback();
+    // Chỉ Rollback khi lỗi CƠ SỞ DỮ LIỆU
+    try {
+        await t.rollback();
+    } catch (rbError) {
+        console.error('Lỗi rollback:', rbError);
     }
     
     console.error('Lỗi API createEmployee:', error);
@@ -411,7 +418,7 @@ const query = `
     res.status(500).json({ success: false, message: 'Lỗi Server khi tải dữ liệu vắng mặt' });
   }
 };
-// NHỚ XUẤT HÀM NÀY RA NHÉ!
+
 module.exports = {
   getEmployees,
   getEmployeeById,

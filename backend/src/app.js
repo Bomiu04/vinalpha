@@ -21,7 +21,7 @@ const directorRoutes = require('./routes/directorRoutes');
 const employeeRoutes = require('./routes/employeeRoutes');
 const managementRoutes = require('./routes/managementRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const GiamDocRoutes = require('./routes/GiamDocRoutes');
+
 
 // ================= 3. USE ROUTES =================
 app.use('/api/auth', authRoutes);
@@ -30,7 +30,7 @@ app.use('/api/director', directorRoutes);
 app.use('/api/employee', employeeRoutes);
 app.use('/api/manager', managementRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/giamdoc', GiamDocRoutes);
+
 
 // --- ROUTES TEST ---
 app.get('/', (req, res) => {

@@ -267,7 +267,7 @@ export default function NotificationPage() {
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/departments/dropdown/departments");
+        const res = await axios.get("http://localhost:5000/api/director/departments");
         setDepartments(res.data || []);
       } catch (error) {
         console.error("Lỗi tải phòng ban:", error);
@@ -284,7 +284,7 @@ export default function NotificationPage() {
     }
     const fetchEmployees = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/departments/${form.department_id}/employees`);
+        const res = await axios.get(`http://localhost:5000/api/director/departments/${form.department_id}/employees`);
         setEmployees(res.data || []);
       } catch (error) {
         console.error("Lỗi tải nhân viên theo phòng ban:", error);
@@ -302,7 +302,7 @@ export default function NotificationPage() {
     const load = async () => {
       try {
         const res = await axios.get(
-          `http://localhost:5000/api/departments/${filterDeptId}/employees`
+          `http://localhost:5000/api/director/departments/${filterDeptId}/employees`
         );
         setFilterEmployees(res.data || []);
       } catch (error) {
