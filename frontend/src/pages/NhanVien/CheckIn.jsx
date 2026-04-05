@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Circle, CircleMarker, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { ChevronLeft, ChevronRight, Fingerprint } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Fingerprint, Wifi, AlertTriangle } from 'lucide-react';
+import { getManagerSocket, socketOriginFromApiBase } from '../../services/managerSocket';
 
 import './CheckIn.css';
 
@@ -14,6 +15,7 @@ L.Icon.Default.mergeOptions({
 });
 
 const API_BASE = 'http://localhost:5000/api';
+const SOCKET_ORIGIN = socketOriginFromApiBase(API_BASE);
 
 /** Trùng backend TEMP_HEADQUARTERS */
 const TEMP_HQ = {
@@ -95,6 +97,10 @@ const CheckIn = () => {
   const [showCheckoutConfirm, setShowCheckoutConfirm] = useState(false);
   const [checkoutPreviewTime, setCheckoutPreviewTime] = useState('');
   const [showAttendanceCard, setShowAttendanceCard] = useState(true);
+  /** Trạng thái WiFi IP (theo API summary / lỗi backend khi chấm công). */
+  const [isWifiValid, setIsWifiValid] = useState(true);
+  /** true = ngoài vùng bán kính (khóa chấm công khi có radius). */
+  const [isOutZone, setIsOutZone] = useState(true);
 
   const watchIdRef = useRef(null);
   const mapRef = useRef(null);
@@ -124,12 +130,26 @@ const CheckIn = () => {
     return haversineDistanceMeters(latitude, longitude, workLocation.latitude, workLocation.longitude);
   }, [workLocation, gps.position]);
 
-  const isInsideRadius = useMemo(() => {
-    if (!workLocation) return false;
-    if (!workLocation.radius_meters) return true;
-    if (distanceMeters == null) return false;
-    return distanceMeters <= workLocation.radius_meters;
-  }, [workLocation, distanceMeters]);
+  useEffect(() => {
+    if (!gps.position || !workLocation) {
+      setIsOutZone(true);
+      return;
+    }
+    const r = workLocation.radius_meters;
+    if (r == null || r === '' || Number(r) <= 0) {
+      setIsOutZone(false);
+      return;
+    }
+    const distance = haversineDistanceMeters(
+      gps.position.latitude,
+      gps.position.longitude,
+      workLocation.latitude,
+      workLocation.longitude
+    );
+    setIsOutZone(distance > Number(r));
+  }, [gps.position, workLocation]);
+
+  const isInsideRadius = !isOutZone;
 
   const radarColor = useMemo(() => {
     if (!workLocation || !gps.position) return '#16a34a';
@@ -162,7 +182,7 @@ const CheckIn = () => {
     gpsPosRef.current = gps.position;
   }, [gps.position]);
 
-  const fetchSummary = async () => {
+  const fetchSummary = useCallback(async () => {
     if (!employeeId) return;
     setActionError('');
     try {
@@ -171,18 +191,36 @@ const CheckIn = () => {
       if (!res.ok || !json.success) {
         throw new Error(json.message || `Lỗi ${res.status}`);
       }
-      setWorkLocation(json.data.workLocation);
+      const wl = json.data.workLocation;
+      setWorkLocation(wl);
+      if (!wl || !wl.wifi_ip_required) {
+        setIsWifiValid(true);
+      } else {
+        setIsWifiValid(wl.client_ip_allowed === true);
+      }
       setAttendanceToday(json.data.attendanceToday);
     } catch (err) {
       setMessage('Không thể tải dữ liệu chấm công từ server.');
       setActionError(err.message || String(err));
     }
-  };
+  }, [employeeId]);
 
   useEffect(() => {
-    fetchSummary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employeeId]);
+    void fetchSummary();
+  }, [fetchSummary]);
+
+  useEffect(() => {
+    if (!employeeId) return;
+    const socket = getManagerSocket(SOCKET_ORIGIN);
+    const onLocationsUpdated = () => {
+      console.log('🔄 Admin vừa cập nhật vùng chấm công. Đang tải lại...');
+      void fetchSummary();
+    };
+    socket.on('admin_locations_updated', onLocationsUpdated);
+    return () => {
+      socket.off('admin_locations_updated', onLocationsUpdated);
+    };
+  }, [employeeId, fetchSummary]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -217,10 +255,9 @@ const CheckIn = () => {
   }, []);
 
   useEffect(() => {
-    const t = setInterval(() => fetchSummary(), 30000);
+    const t = setInterval(() => void fetchSummary(), 30000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employeeId]);
+  }, [fetchSummary]);
 
   useEffect(() => {
     if (!gps.position || !isMapReady || !mapRef.current || hasAutoCenteredRef.current) return;
@@ -234,10 +271,17 @@ const CheckIn = () => {
     }
   }, [gps.position, isMapReady]);
 
+  const wifiIpBlocks =
+    workLocation?.wifi_ip_required === true && workLocation?.client_ip_allowed === false;
+
   useEffect(() => {
     if (!workLocation) return;
     if (actionError) {
       setMessage(actionError);
+      return;
+    }
+    if (wifiIpBlocks) {
+      setMessage('Cần kết nối WiFi văn phòng (IP hiện tại chưa khớp danh sách cho phép).');
       return;
     }
     if (isDone) {
@@ -261,7 +305,7 @@ const CheckIn = () => {
       return;
     }
     setMessage('Nhấn CHECK IN để bắt đầu ca.');
-  }, [workLocation, gps.position, isInsideRadius, canCheckOut, isDone, actionError]);
+  }, [workLocation, gps.position, isInsideRadius, canCheckOut, isDone, actionError, wifiIpBlocks]);
 
   useEffect(() => {
     if (!canCheckOut) setShowCheckoutConfirm(false);
@@ -295,7 +339,15 @@ const CheckIn = () => {
 
       const json = await res.json().catch(() => ({}));
       if (!res.ok || !json.success) {
-        throw new Error(json.message || `Lỗi ${res.status}`);
+        const msg = json.message || `Lỗi ${res.status}`;
+        if (
+          typeof msg === 'string' &&
+          (msg.includes('WiFi văn phòng') || msg.includes('kết nối mạng'))
+        ) {
+          setIsWifiValid(false);
+          window.alert(msg);
+        }
+        throw new Error(msg);
       }
 
       setShowCheckoutConfirm(false);
@@ -323,7 +375,8 @@ const CheckIn = () => {
     isDone ||
     !gps.position ||
     !workLocation ||
-    (workLocation.radius_meters != null && !isInsideRadius);
+    (workLocation.radius_meters != null && isOutZone) ||
+    wifiIpBlocks;
 
   return (
     <div className="checkin-shell">
@@ -481,6 +534,29 @@ const CheckIn = () => {
             </div>
 
             <div className="checkin-fab-subtext">{message}</div>
+
+            <div
+              className={`checkin-wifi-bar ${isWifiValid ? 'checkin-wifi-bar--ok' : 'checkin-wifi-bar--bad'}`}
+              role="status"
+            >
+              {isWifiValid ? (
+                <Wifi size={20} className="checkin-wifi-icon" aria-hidden />
+              ) : (
+                <AlertTriangle size={20} className="checkin-wifi-icon" aria-hidden />
+              )}
+              <div className="checkin-wifi-text">
+                <div className="checkin-wifi-title">
+                  {isWifiValid ? 'Kết nối mạng công ty' : 'Chưa kết nối WiFi công ty'}
+                </div>
+                <div className="checkin-wifi-sub">
+                  {workLocation?.wifi_ip_required
+                    ? isWifiValid
+                      ? 'IP hiện tại khớp danh sách cho phép.'
+                      : 'IP hiện tại không nằm trong danh sách WiFi văn phòng — không thể chấm công.'
+                    : 'Không bắt buộc kiểm tra IP WiFi cho chi nhánh này.'}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

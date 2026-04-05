@@ -41,6 +41,9 @@ io.on('connection', (socket) => {
   });
 });
 
+const { registerGeofencingSocket } = require('./services/geofencingService');
+registerGeofencingSocket(io);
+
 // ================= 3. IMPORT ROUTES =================
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/AdminRoutes');

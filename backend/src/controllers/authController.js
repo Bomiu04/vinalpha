@@ -10,6 +10,7 @@ global.otpStorage = global.otpStorage || {};
 const jwt = require('jsonwebtoken'); // 1. NHỚ PHẢI CÓ DÒNG NÀY Ở ĐẦU FILE
 
 const login = async (req, res) => {
+  console.log('📥 [BACKEND] Nhận request đăng nhập:', req.body?.username);
   try {
     const { username, password } = req.body;
 
@@ -62,6 +63,8 @@ const login = async (req, res) => {
         message: "Vui lòng đổi mật khẩu trước khi sử dụng hệ thống.",
         token: token, // Bây giờ token đã có giá trị
         user: {
+          id: user.employee_id,
+          name: user.full_name,
           username: user.username,
           role: user.role_code
         }
@@ -69,7 +72,7 @@ const login = async (req, res) => {
     }
 
     // Đăng nhập bình thường
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       require_pass_change: false,
       token: token,
@@ -83,7 +86,7 @@ const login = async (req, res) => {
 
   } catch (error) {
     console.error('Lỗi đăng nhập:', error);
-    res.status(500).json({ success: false, message: 'Lỗi máy chủ nội bộ' });
+    return res.status(500).json({ success: false, message: 'Lỗi máy chủ nội bộ' });
   }
 };
 

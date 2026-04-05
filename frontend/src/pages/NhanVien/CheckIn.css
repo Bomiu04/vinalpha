@@ -569,3 +569,66 @@
     opacity: 0;
   }
 }
+
+/* Trạng thái WiFi / IP văn phòng */
+.checkin-wifi-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  text-align: left;
+  width: 100%;
+  max-width: 280px;
+  box-sizing: border-box;
+}
+
+.checkin-wifi-bar--ok {
+  background: rgba(239, 246, 255, 0.85);
+  border-color: rgba(191, 219, 254, 0.95);
+}
+
+.checkin-wifi-bar--ok .checkin-wifi-icon {
+  color: #2563eb;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.checkin-wifi-bar--ok .checkin-wifi-title {
+  color: #1d4ed8;
+}
+
+.checkin-wifi-bar--bad {
+  background: rgba(255, 241, 242, 0.95);
+  border-color: rgba(254, 205, 211, 0.95);
+}
+
+.checkin-wifi-bar--bad .checkin-wifi-icon {
+  color: #e11d48;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.checkin-wifi-bar--bad .checkin-wifi-title {
+  color: #be123c;
+}
+
+.checkin-wifi-title {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.checkin-wifi-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+.checkin-wifi-bar--bad .checkin-wifi-sub {
+  color: #9f1239;
+}
