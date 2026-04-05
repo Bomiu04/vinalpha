@@ -3,7 +3,8 @@ import { MapContainer, TileLayer, Circle, CircleMarker, Marker, Popup, useMap } 
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { ChevronLeft, ChevronRight, Fingerprint, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { io } from 'socket.io-client'; // 1. IMPORT SOCKET.IO
+import { useManagerBranchSocket } from '../../hooks/useManagerBranchSocket';
+import { socketOriginFromApiBase } from '../../services/managerSocket';
 
 import './CheckIn.css';
 
@@ -15,8 +16,7 @@ L.Icon.Default.mergeOptions({
 });
 
 const API_BASE = 'http://localhost:5000/api';
-// 2. KHỞI TẠO SOCKET TOÀN CỤC (Để tránh bị tạo lại nhiều lần khi render)
-const socket = io('http://localhost:5000'); 
+const SOCKET_ORIGIN = socketOriginFromApiBase(API_BASE);
 
 const TEMP_HQ = { latitude: 16.05963797280072, longitude: 108.17468278677039, radiusMeters: 500 };
 const toRadians = (deg) => (deg * Math.PI) / 180;
@@ -48,6 +48,13 @@ const getInitials = (name) => {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[parts.length - 2][0] || ''}${parts[parts.length - 1][0] || ''}`.toUpperCase();
 };
+const getEmployeeDisplayName = (employeeId, attendees) => {
+  if (employeeId == null) return 'Nhân viên';
+  const idNum = Number(employeeId);
+  const row = attendees.find((a) => Number(a.employeeId) === idNum);
+  return row?.fullName || `Nhân viên #${employeeId}`;
+};
+
 const buildStaffMarkerIcon = ({ initials, tone, active }) =>
   L.divIcon({
     className: 'manager-staff-marker',
@@ -79,6 +86,10 @@ const ManagerCheckIn = () => {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
   const [monitorOpen, setMonitorOpen] = useState(true);
   const [showAttendanceCard, setShowAttendanceCard] = useState(true);
+  const [managerAlerts, setManagerAlerts] = useState([]);
+  const [isOutZone, setIsOutZone] = useState(true);
+  /** Vị trí realtime từ mobile (employee_location_update), key = employee id */
+  const [employeePositions, setEmployeePositions] = useState({});
 
   const watchIdRef = useRef(null);
   const mapRef = useRef(null);
@@ -97,12 +108,26 @@ const ManagerCheckIn = () => {
     return haversineDistanceMeters(gps.position.latitude, gps.position.longitude, workLocation.latitude, workLocation.longitude);
   }, [workLocation, gps.position]);
 
-  const isInsideRadius = useMemo(() => {
-    if (!workLocation) return false;
-    if (workLocation.radius_meters == null) return true;
-    if (distanceMeters == null) return false;
-    return distanceMeters <= workLocation.radius_meters;
-  }, [workLocation, distanceMeters]);
+  useEffect(() => {
+    if (!gps.position || !workLocation) {
+      setIsOutZone(true);
+      return;
+    }
+    const r = workLocation.radius_meters;
+    if (r == null || r === '' || Number(r) <= 0) {
+      setIsOutZone(false);
+      return;
+    }
+    const distance = haversineDistanceMeters(
+      gps.position.latitude,
+      gps.position.longitude,
+      workLocation.latitude,
+      workLocation.longitude
+    );
+    setIsOutZone(distance > Number(r));
+  }, [gps.position, workLocation]);
+
+  const isInsideRadius = !isOutZone;
 
   const recenterToMe = useCallback(() => {
     const map = mapRef.current; const pos = gpsPosRef.current;
@@ -145,34 +170,78 @@ const ManagerCheckIn = () => {
     return String(raw);
   }, [workLocation]);
 
-  // 3. EFFECT ĐỂ KẾT NỐI VÀ LẮNG NGHE SOCKET.IO
-  useEffect(() => {
-    if (!branchIdForSocket) {
-      console.log('[Socket] Chưa join room — thiếu branch_id (cần workLocation.branch.branch_id hoặc workLocation.branch_id)');
+  const handleAttendanceSocket = useCallback(() => {
+    void fetchZoneAttendance().catch((err) => console.error('[Socket] fetchZoneAttendance sau attendance_changed:', err));
+  }, [fetchZoneAttendance]);
+
+  const attendeesRef = useRef(attendees);
+  attendeesRef.current = attendees;
+
+  const handleAdminLocationsUpdated = useCallback(() => {
+    console.log('🔄 Admin vừa cập nhật vùng chấm công. Đang tải lại...');
+    void Promise.all([fetchSummary(), fetchZoneAttendance()]).catch((err) =>
+      console.error('[Socket] fetch sau admin_locations_updated:', err)
+    );
+  }, [fetchSummary, fetchZoneAttendance]);
+
+  const handleEmployeeLocationUpdate = useCallback((data) => {
+    const id = data?.user_id ?? data?.employee_id;
+    const lat = Number(data?.latitude);
+    const lng = Number(data?.longitude);
+    if (id == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    setEmployeePositions((prev) => ({
+      ...prev,
+      [String(id)]: {
+        latitude: lat,
+        longitude: lng,
+        timestamp: data?.timestamp,
+      },
+    }));
+  }, []);
+
+  const handleManagerAlert = useCallback((payload) => {
+    const name = getEmployeeDisplayName(payload?.employee_id, attendeesRef.current);
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    if (payload?.type === 'speed_anomaly') {
+      setManagerAlerts((prev) => [
+        ...prev.slice(-6),
+        {
+          id,
+          variant: 'danger',
+          text: `Cảnh báo gian lận: Nhân viên ${name} di chuyển bất thường (Nghi vấn Fake GPS)`,
+        },
+      ]);
       return;
     }
+    if (payload?.type === 'poor_accuracy') {
+      const acc =
+        payload.accuracy_meters != null && Number.isFinite(Number(payload.accuracy_meters))
+          ? ` (độ chính xác báo cáo ~${Math.round(Number(payload.accuracy_meters))}m)`
+          : '';
+      setManagerAlerts((prev) => [
+        ...prev.slice(-6),
+        {
+          id,
+          variant: 'warn',
+          text: `Vị trí nhân viên ${name} không chính xác (Độ sai lệch > 80m)${acc}`,
+        },
+      ]);
+      return;
+    }
+    setManagerAlerts((prev) => [
+      ...prev.slice(-6),
+      { id, variant: 'info', text: payload?.message || 'Cảnh báo geofence' },
+    ]);
+  }, []);
 
-    const roomName = `branch_${branchIdForSocket}`;
-    console.log('[Socket] emit join_branch_room', { branchIdForSocket, roomName, socketId: socket.id, connected: socket.connected });
-
-    const tryJoin = () => {
-      socket.emit('join_branch_room', branchIdForSocket);
-    };
-    socket.on('connect', tryJoin);
-    if (socket.connected) tryJoin();
-
-    const handleAttendanceUpdate = (data) => {
-      console.log('[Socket] attendance_changed received', { data, roomExpected: roomName });
-      void fetchZoneAttendance().catch((err) => console.error('[Socket] fetchZoneAttendance sau attendance_changed:', err));
-    };
-
-    socket.on('attendance_changed', handleAttendanceUpdate);
-
-    return () => {
-      socket.off('connect', tryJoin);
-      socket.off('attendance_changed', handleAttendanceUpdate);
-    };
-  }, [branchIdForSocket, fetchZoneAttendance]);
+  useManagerBranchSocket({
+    branchId: branchIdForSocket || null,
+    socketUrl: SOCKET_ORIGIN,
+    onAttendanceChanged: handleAttendanceSocket,
+    onManagerAlert: handleManagerAlert,
+    onAdminLocationsUpdated: handleAdminLocationsUpdated,
+    onEmployeeLocationUpdate: handleEmployeeLocationUpdate,
+  });
 
   useEffect(() => {
     if (!managerId) return;
@@ -228,10 +297,26 @@ const ManagerCheckIn = () => {
     void submitAttendance('checkin');
   };
 
-  const actionDisabled = actionLoading || isDone || !gps.position || !workLocation || (workLocation.radius_meters != null && !isInsideRadius);
+  const actionDisabled =
+    actionLoading || isDone || !gps.position || !workLocation || (workLocation.radius_meters != null && isOutZone);
 
 return (
     <div className="checkin-shell">
+      {managerAlerts.length > 0 && (
+        <div className="manager-fraud-alerts" role="region" aria-label="Cảnh báo geofence">
+          {managerAlerts.map((a) => (
+            <div
+              key={a.id}
+              className={`manager-fraud-alert ${a.variant === 'danger' ? 'manager-fraud-alert--danger' : a.variant === 'warn' ? 'manager-fraud-alert--warn' : 'manager-fraud-alert--info'}`}
+            >
+              <span className="manager-fraud-alert-text">{a.text}</span>
+              <button type="button" className="manager-fraud-alert-close" onClick={() => setManagerAlerts((prev) => prev.filter((x) => x.id !== a.id))} aria-label="Đóng">
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="checkin-map-wrapper">
         
         {/* 1. BADGE TRỰC TIẾP (LIVE) */}
@@ -255,6 +340,20 @@ return (
           {gps.position && (
             <CircleMarker center={[gps.position.latitude, gps.position.longitude]} radius={12} pathOptions={{ color: isInsideRadius ? '#16a34a' : '#dc2626', weight: 3, fillOpacity: 0.85 }} />
           )}
+
+          {Object.entries(employeePositions).map(([empId, pos]) => (
+            <CircleMarker
+              key={`live-pos-${empId}`}
+              center={[pos.latitude, pos.longitude]}
+              radius={9}
+              pathOptions={{
+                color: '#1d4ed8',
+                weight: 2,
+                fillColor: '#3b82f6',
+                fillOpacity: 0.9,
+              }}
+            />
+          ))}
 
           {attendees.map((item, index) =>
             item.latitude && item.longitude ? (

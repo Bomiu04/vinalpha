@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // 🔥 BƯỚC 1: Đổi tên Map thành MapIcon ở đây
 import { MapPin, Wifi, Save, Navigation, Trash2, Plus, Edit2, CheckCircle, Map as MapIcon } from 'lucide-react';
-import LocationMap from './LocationMap'; 
+import LocationMap from './LocationMap';
 import axios from 'axios';
 
 const LocationSettings = () => {
@@ -9,6 +9,28 @@ const LocationSettings = () => {
     const [selectedLoc, setSelectedLoc] = useState(null);
     const [ipInput, setIpInput] = useState('');
     const [branches, setBranches] = useState([]);
+
+    const handleAddNewLocation = useCallback(() => {
+        const newId = Date.now();
+        const newLocation = {
+            id: newId,
+            branch_id: '',
+            location_name: 'Khu vực mới',
+            branch_name: 'Chưa gắn chi nhánh',
+            address: 'Chưa cập nhật',
+            latitude: 21.028511,
+            longitude: 105.804817,
+            radius_meters: 100,
+            allowed_ips: [],
+            is_active: false,
+            gps_status: false,
+            wifi_status: false,
+            type: 'branch',
+            isNew: true
+        };
+        setLocations(prev => [newLocation, ...prev]);
+        setSelectedLoc(newLocation);
+    }, []);
 
     // 🛠️ 1. GỌI API LẤY DANH SÁCH TỪ DATABASE
     useEffect(() => {
@@ -19,10 +41,9 @@ const LocationSettings = () => {
 
                 if (apiData && apiData.length > 0) {
                     const uniqueBranches = [];
-                   const validData = apiData.filter(item => item.work_location_id !== null);
-                    const duplicateFilterMap = new Map(); 
+                    const duplicateFilterMap = new Map();
                     for (const item of apiData) {
-                        if(!duplicateFilterMap.has(item.id)){
+                        if (!duplicateFilterMap.has(item.id)) {
                             duplicateFilterMap.set(item.id, true);
                             uniqueBranches.push({ id: item.id, branch_name: item.branch_name });
                         }
@@ -30,7 +51,7 @@ const LocationSettings = () => {
                     setBranches(uniqueBranches);
 
                     const formattedLocations = apiData.map(item => ({
-                        id: item.work_location_id || `temp_${item.id}`, 
+                        id: item.work_location_id || `temp_${item.id}`,
                         work_location_id: item.work_location_id,
                         branch_id: item.id,
                         location_name: item.location_name || 'Chưa đặt tên khu vực',
@@ -39,38 +60,47 @@ const LocationSettings = () => {
                         latitude: Number(item.latitude) || null,
                         longitude: Number(item.longitude) || null,
                         radius_meters: Number(item.radius_meters) || 100,
-                        allowed_ips: Array.isArray(item.allowed_ips) ? item.allowed_ips : 
-                                    (typeof item.allowed_ips === 'string' ? JSON.parse(item.allowed_ips) : []),
+                        allowed_ips: Array.isArray(item.allowed_ips) ? item.allowed_ips :
+                            (typeof item.allowed_ips === 'string' ? JSON.parse(item.allowed_ips) : []),
                         is_active: item.is_active !== undefined ? item.is_active : true,
                         gps_status: !!item.latitude,
                         wifi_status: item.allowed_ips && item.allowed_ips.length > 0,
-                        type: item.type || 'branch', 
+                        type: item.type || 'branch',
                         isNew: false
                     }));
 
                     setLocations(formattedLocations);
                     setSelectedLoc(formattedLocations[0]);
                 } else {
-                    handleAddNewLocation(); 
+                    handleAddNewLocation();
                 }
             } catch (error) {
                 console.error("Lỗi lấy dữ liệu từ DB:", error);
             }
         };
         fetchLocations();
-    }, []);
+    }, [handleAddNewLocation]);
 
     const handleSaveConfig = async () => {
+        const idNum = typeof selectedLoc.id === 'number' ? selectedLoc.id : NaN;
+        /** Timestamp (Date.now()) vượt giới hạn PostgreSQL INTEGER — không gửi xuống API */
+        const idLooksLikeClientTimestamp = Number.isFinite(idNum) && idNum > 2147483647;
+
         const payload = {
+            // Nếu là khu vực mới (có cờ isNew hoặc id là 'new'), hoặc id tạm timestamp — KHÔNG gửi id xuống Backend
+            id: (selectedLoc.isNew || selectedLoc.id === 'new' || idLooksLikeClientTimestamp)
+                ? undefined
+                : selectedLoc.id,
+
+            work_location_id: selectedLoc.work_location_id || undefined,
+            branch_name: selectedLoc.branch_name,
             location_name: selectedLoc.location_name,
-            location_type: selectedLoc.type, 
-            id: selectedLoc.branch_id, 
-            address: selectedLoc.address,
+            location_type: selectedLoc.type || 'branch',
             latitude: selectedLoc.latitude,
             longitude: selectedLoc.longitude,
             radius_meters: selectedLoc.radius_meters,
-            allowed_ips: selectedLoc.allowed_ips, 
-            is_active: selectedLoc.is_active
+            is_active: selectedLoc.is_active,
+            allowed_ips: JSON.stringify(selectedLoc.allowed_ips || []),
         };
 
         try {
@@ -78,7 +108,7 @@ const LocationSettings = () => {
                 const res = await axios.post('http://localhost:5000/api/admin/locations', payload);
                 alert("✅ Đã THÊM MỚI khu vực thành công!");
                 updateField('isNew', false);
-                const newId = res.data?.data?.id || res.data?.id; 
+                const newId = res.data?.data?.id || res.data?.id;
                 if (newId) updateField('branch_id', newId);
             } else {
                 await axios.put(`http://localhost:5000/api/admin/locations/${selectedLoc.branch_id}/settings`, payload);
@@ -96,62 +126,104 @@ const LocationSettings = () => {
         setLocations(locations.map(loc => loc.id === updatedLoc.id ? updatedLoc : loc));
     };
 
-    const handleAddNewLocation = () => {
-        const newId = Date.now(); 
-        const newLocation = {
-            id: newId,
-            branch_id: '', 
-            location_name: 'Khu vực mới', 
-            branch_name: 'Chưa gắn chi nhánh',
-            address: 'Chưa cập nhật',
-            latitude: 21.028511, 
-            longitude: 105.804817,
-            radius_meters: 100,
-            allowed_ips: [],
-            is_active: false,
-            gps_status: false,
-            wifi_status: false,
-            type: 'branch', 
-            isNew: true 
-        };
-        setLocations([newLocation, ...locations]); 
-        setSelectedLoc(newLocation);
-    };
-
-    const handleDeleteLocation = async () => {
+const handleDeleteLocation = async () => {
+        // 1. Nếu là khu vực mới (chưa lưu vào DB) -> Chỉ cần xóa khỏi danh sách UI
         if (selectedLoc.isNew) {
-            const newLocations = locations.filter(loc => loc.id !== selectedLoc.id);
-            setLocations(newLocations);
-            setSelectedLoc(newLocations.length > 0 ? newLocations[0] : null);
+            const updatedList = locations.filter(loc => loc.id !== selectedLoc.id);
+            setLocations(updatedList);
+            if (updatedList.length > 0) {
+                setSelectedLoc(updatedList[0]);
+            } else {
+                handleAddNewLocation();
+            }
             return;
         }
-        const confirmText = prompt(`Để xóa, vui lòng gõ chính xác tên: "${selectedLoc.location_name}"`);
-        if (confirmText?.trim() !== selectedLoc.location_name) return alert("Sai tên xác nhận!");
 
+        // 2. YÊU CẦU NHẬP ĐÚNG TÊN ĐỂ XÁC NHẬN XÓA
+        const locationNameToDelete = selectedLoc.location_name;
+        const userInput = window.prompt(
+            `CẢNH BÁO BẢO MẬT:\nBạn đang chuẩn bị xóa khu vực "${locationNameToDelete}".\n\nHành động này không thể hoàn tác! Vui lòng nhập chính xác tên khu vực ("${locationNameToDelete}") để xác nhận xóa:`
+        );
+
+        // 3. KIỂM TRA ĐIỀU KIỆN
+        if (userInput === null) {
+            return; // Người dùng bấm Hủy (Cancel)
+        }
+        if (userInput.trim() !== locationNameToDelete) {
+            alert(`❌ Xóa thất bại!\nTên bạn nhập ("${userInput}") không khớp với "${locationNameToDelete}".`);
+            return;
+        }
+
+        // 4. NẾU NHẬP ĐÚNG -> GỌI API XÓA
         try {
-            await axios.delete(`http://localhost:5000/api/admin/locations/${selectedLoc.branch_id}/work-location`);
-            alert("✅ Đã xóa cấu hình GPS!");
-            const updatedLoc = { ...selectedLoc, latitude: null, longitude: null, radius_meters: null, gps_status: false };
-            setSelectedLoc(updatedLoc);
-            setLocations(locations.map(loc => loc.id === updatedLoc.id ? updatedLoc : loc));
+            const res = await axios.delete(`http://localhost:5000/api/admin/locations/${selectedLoc.work_location_id}/work-location`);
+            
+            if (res.data.success) {
+                alert("✅ Đã xóa khu vực chấm công thành công!");
+                
+                // Cập nhật lại UI: Lọc bỏ khu vực vừa xóa
+                const updatedList = locations.filter(loc => loc.work_location_id !== selectedLoc.work_location_id);
+                setLocations(updatedList);
+                
+                // Đưa form bên phải về trạng thái trắng hoặc chọn khu vực khác
+                if (updatedList.length > 0) {
+                    setSelectedLoc(updatedList[0]);
+                } else {
+                    handleAddNewLocation();
+                }
+            }
         } catch (error) {
-            alert("❌ Lỗi khi xóa!");
+            console.error("Lỗi khi xóa:", error);
+            alert("❌ Xóa thất bại! Vui lòng thử lại.");
         }
     };
 
-    const handleAddIp = () => {
-        if (!ipInput.trim() || selectedLoc.allowed_ips.includes(ipInput.trim())) return;
-        const updatedIps = [...selectedLoc.allowed_ips, ipInput.trim()];
-        updateField('allowed_ips', updatedIps);
-        updateField('wifi_status', true); 
-        setIpInput(''); 
-    };
+const handleAddIp = () => {
+    if (!ipInput.trim()) return;
 
-    const handleRemoveIp = (ipToRemove) => {
-        const updatedIps = selectedLoc.allowed_ips.filter(ip => ip !== ipToRemove);
-        updateField('allowed_ips', updatedIps);
-        updateField('wifi_status', updatedIps.length > 0);
-    };
+    // Kiểm tra định dạng IP cơ bản (Regex)
+    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+    if (!ipPattern.test(ipInput.trim())) {
+        alert("❌ Định dạng IP không hợp lệ (Ví dụ: 192.168.1.1)");
+        return;
+    }
+
+    // Kiểm tra trùng lặp trong danh sách hiện tại
+    if (selectedLoc.allowed_ips.includes(ipInput.trim())) {
+        alert("⚠️ IP này đã tồn tại trong danh sách!");
+        return;
+    }
+
+    // Cập nhật State cho selectedLoc
+    const updatedIps = [...selectedLoc.allowed_ips, ipInput.trim()];
+    const updatedLoc = { ...selectedLoc, allowed_ips: updatedIps };
+    
+    setSelectedLoc(updatedLoc);
+
+    // Cập nhật lại vào danh sách tổng (locations) để đồng bộ UI bên trái
+    setLocations(prev => prev.map(loc => 
+        (loc.work_location_id === selectedLoc.work_location_id && loc.id === selectedLoc.id) 
+        ? updatedLoc 
+        : loc
+    ));
+
+    setIpInput(''); // Xóa ô nhập liệu
+};
+
+const handleRemoveIp = (ipToRemove) => {
+    // Lọc bỏ IP được chọn
+    const updatedIps = selectedLoc.allowed_ips.filter(ip => ip !== ipToRemove);
+    const updatedLoc = { ...selectedLoc, allowed_ips: updatedIps };
+
+    setSelectedLoc(updatedLoc);
+
+    // Đồng bộ lại danh sách tổng để UI cập nhật ngay lập tức
+    setLocations(prev => prev.map(loc => 
+        (loc.work_location_id === selectedLoc.work_location_id && loc.id === selectedLoc.id) 
+        ? updatedLoc 
+        : loc
+    ));
+};
 
     const handleGetGPS = () => {
         if (!navigator.geolocation) return alert("Không hỗ trợ GPS!");
@@ -176,7 +248,7 @@ const LocationSettings = () => {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#F8FAFC', fontFamily: 'system-ui' }}>
-            
+
             <div style={{ padding: '20px 30px', backgroundColor: 'white', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                     <div style={{ padding: '12px', backgroundColor: '#F0F9FF', borderRadius: '12px' }}>
@@ -194,13 +266,13 @@ const LocationSettings = () => {
             </div>
 
             <div style={{ display: 'flex', flex: 1, padding: '20px', gap: '25px', overflow: 'hidden' }}>
-                
+
                 <div style={{ width: '280px', overflowY: 'auto', paddingRight: '5px' }}>
                     <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748B', marginBottom: '15px' }}>DANH SÁCH KHU VỰC</p>
                     {locations.map(loc => (
                         <div key={loc.id} onClick={() => setSelectedLoc(loc)} style={{ padding: '15px', borderRadius: '15px', backgroundColor: 'white', cursor: 'pointer', marginBottom: '12px', border: selectedLoc.id === loc.id ? '1.5px solid #38BDF8' : '1px solid #F1F5F9', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', position: 'relative' }}>
                             <div style={{ fontWeight: '700', fontSize: '14px', color: '#1E293B' }}>
-                                {loc.location_name} {loc.isNew && <span style={{color: '#E11D48', fontSize: '10px'}}>(Mới)</span>}
+                                {loc.location_name} {loc.isNew && <span style={{ color: '#E11D48', fontSize: '10px' }}>(Mới)</span>}
                             </div>
                             <div style={{ fontSize: '11px', color: '#94A3B8', margin: '4px 0 10px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <MapPin size={12} /> {loc.branch_id ? `Nhánh: ${loc.branch_name}` : 'Chưa gắn'}
@@ -211,13 +283,13 @@ const LocationSettings = () => {
                 </div>
 
                 <div style={{ flex: 1, backgroundColor: 'white', borderRadius: '20px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-                    
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
                             <div style={{ backgroundColor: '#F8FAFC', padding: '8px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
                                 <Edit2 size={18} color="#0EA5E9" />
                             </div>
-                            <input 
+                            <input
                                 type="text"
                                 value={selectedLoc.location_name}
                                 onChange={(e) => updateField('location_name', e.target.value)}
@@ -270,7 +342,7 @@ const LocationSettings = () => {
                     <div style={{ display: 'flex', gap: '40px' }}>
                         <div style={{ flex: 1 }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', color: '#334155' }}>
-                                <div style={{ backgroundColor: '#F0F9FF', padding: '6px', borderRadius: '8px' }}><CheckCircle size={18} color="#0EA5E9" /></div> 
+                                <div style={{ backgroundColor: '#F0F9FF', padding: '6px', borderRadius: '8px' }}><CheckCircle size={18} color="#0EA5E9" /></div>
                                 Cấu hình GPS
                             </h4>
                             <div style={{ marginTop: '20px' }}>
@@ -296,7 +368,7 @@ const LocationSettings = () => {
                             {selectedLoc.latitude && selectedLoc.longitude ? (
                                 <LocationMap lat={selectedLoc.latitude} lng={selectedLoc.longitude} radius={selectedLoc.radius_meters} />
                             ) : (
-                                <div style={{width: '100%', height: '100%', backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8'}}>
+                                <div style={{ width: '100%', height: '100%', backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8' }}>
                                     Chưa có tọa độ
                                 </div>
                             )}
