@@ -760,3 +760,32 @@
 .checkin-wifi-bar--bad .checkin-wifi-sub {
   color: #9f1239;
 }
+
+/* Cảnh báo rời vùng — fixed trên cùng viewport, cao hơn lớp map UI */
+.checkin-outzone-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  background: linear-gradient(180deg, #b91c1c 0%, #991b1b 100%);
+  color: #fff;
+  padding: 12px 16px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.45;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+}
+
+.checkin-outzone-banner-time {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  font-size: 1.05em;
+}
+
+.checkin-outzone-banner-hint {
+  font-weight: 600;
+  opacity: 0.92;
+  font-size: 12px;
+}

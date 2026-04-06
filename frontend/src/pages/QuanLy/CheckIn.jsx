@@ -34,6 +34,13 @@ const formatTime = (value) => {
   if (Number.isNaN(d.getTime())) return '--:--';
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 };
+
+const formatMMSS = (totalSeconds) => {
+  const s = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+};
 const formatAttendanceStatus = (status) => {
   switch (status) {
     case 'on_time': return 'Đúng giờ';
@@ -56,15 +63,23 @@ const getEmployeeDisplayName = (employeeId, attendees) => {
   return row?.fullName || `Nhân viên #${employeeId}`;
 };
 
-const buildStaffMarkerIcon = ({ initials, tone, active }) =>
-  L.divIcon({
+const buildStaffMarkerIcon = ({ initials, tone, active, countdownLabel }) => {
+  const badge =
+    countdownLabel != null && String(countdownLabel).trim() !== ''
+      ? `<div class="manager-staff-countdown">${String(countdownLabel).replace(/</g, '&lt;')}</div>`
+      : '';
+  const h = countdownLabel ? 88 : 72;
+  return L.divIcon({
     className: 'manager-staff-marker',
-    html: `<div class="manager-staff-pin ${tone} ${active ? 'active' : ''}">
+    html: `<div class="manager-staff-pin-wrap">${badge}<div class="manager-staff-pin ${tone} ${active ? 'active' : ''}">
         <div class="manager-staff-pin-inner"><span>${initials}</span></div>
         <div class="manager-staff-pin-pulse"></div>
-      </div>`,
-    iconSize: [58, 72], iconAnchor: [29, 66], popupAnchor: [0, -58]
+      </div></div>`,
+    iconSize: [58, h],
+    iconAnchor: [29, h - 6],
+    popupAnchor: [0, -(h - 14)],
   });
+};
 
 const MapInstanceRef = ({ mapRef, setIsMapReady }) => {
   const map = useMap();
@@ -100,6 +115,9 @@ const ManagerCheckIn = () => {
   });
   /** Vị trí realtime từ mobile (employee_location_update), key = employee id */
   const [employeePositions, setEmployeePositions] = useState({});
+  /** Đồng bộ đếm ngược rời vùng từ server (employee_out_of_zone_tick) */
+  const employeeOutSyncRef = useRef({});
+  const [mgrOutTick, setMgrOutTick] = useState(0);
 
   const watchIdRef = useRef(null);
   const mapRef = useRef(null);
@@ -112,11 +130,6 @@ const ManagerCheckIn = () => {
   const canCheckOut = !!attendanceToday.checkInTime && !attendanceToday.checkOutTime;
   const isDone = !!attendanceToday.checkOutTime;
   const mapCenter = useMemo(() => [TEMP_HQ.latitude, TEMP_HQ.longitude], []);
-
-  const distanceMeters = useMemo(() => {
-    if (!workLocation || !gps.position) return null;
-    return haversineDistanceMeters(gps.position.latitude, gps.position.longitude, workLocation.latitude, workLocation.longitude);
-  }, [workLocation, gps.position]);
 
   useEffect(() => {
     if (!gps.position || !workLocation) {
@@ -231,6 +244,59 @@ const ManagerCheckIn = () => {
     }));
   }, []);
 
+  const handleEmployeeOutOfZoneTick = useCallback((data) => {
+    const id = String(data?.employee_id ?? '');
+    if (!id) return;
+    if (data?.secondsRemaining == null) {
+      delete employeeOutSyncRef.current[id];
+    } else {
+      const r = Number(data.secondsRemaining);
+      employeeOutSyncRef.current[id] = {
+        remaining: Number.isFinite(r) ? r : 0,
+        at: Date.now(),
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setMgrOutTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const getItemCoords = useCallback(
+    (item) => {
+      const live = employeePositions[String(item.employeeId)];
+      const lat = live?.latitude ?? item.latitude;
+      const lng = live?.longitude ?? item.longitude;
+      if (lat == null || lng == null) return null;
+      const la = Number(lat);
+      const ln = Number(lng);
+      if (!Number.isFinite(la) || !Number.isFinite(ln)) return null;
+      return { lat: la, lng: ln };
+    },
+    [employeePositions]
+  );
+
+  const getEffectiveInside = useCallback(
+    (item) => {
+      if (!workLocation) return item.isInsideZone !== false;
+      const r = workLocation.radius_meters;
+      if (r == null || r === '' || Number(r) <= 0) return true;
+      const c = getItemCoords(item);
+      if (!c) return item.isInsideZone;
+      const d = haversineDistanceMeters(c.lat, c.lng, workLocation.latitude, workLocation.longitude);
+      return d <= Number(r);
+    },
+    [workLocation, getItemCoords]
+  );
+
+  const getOutCountdownLive = useCallback((empId) => {
+    void mgrOutTick;
+    const o = employeeOutSyncRef.current[String(empId)];
+    if (!o?.at) return null;
+    return Math.max(0, o.remaining - (Date.now() - o.at) / 1000);
+  }, [mgrOutTick]);
+
   const handleManagerAlert = useCallback((payload) => {
     const name = getEmployeeDisplayName(payload?.employee_id, attendeesRef.current);
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -273,6 +339,7 @@ const ManagerCheckIn = () => {
     onManagerAlert: handleManagerAlert,
     onAdminLocationsUpdated: handleAdminLocationsUpdated,
     onEmployeeLocationUpdate: handleEmployeeLocationUpdate,
+    onEmployeeOutOfZoneTick: handleEmployeeOutOfZoneTick,
   });
 
   useEffect(() => {
@@ -387,9 +454,25 @@ return (
             />
           ))}
 
-          {attendees.map((item, index) =>
-            item.latitude && item.longitude ? (
-              <Marker key={item.employeeId} position={[item.latitude, item.longitude]} zIndexOffset={selectedEmployeeId === item.employeeId ? 10000 : index} icon={buildStaffMarkerIcon({ initials: getInitials(item.fullName), tone: item.checkOutTime ? 'done' : 'working', active: selectedEmployeeId === item.employeeId })} eventHandlers={{ click: () => setSelectedEmployeeId(item.employeeId) }}>
+          {attendees.map((item, index) => {
+            const coords = getItemCoords(item);
+            if (!coords) return null;
+            const inside = getEffectiveInside(item);
+            const cd = !item.checkOutTime && !inside ? getOutCountdownLive(item.employeeId) : null;
+            const countdownLabel = cd != null ? formatMMSS(cd) : null;
+            return (
+              <Marker
+                key={item.employeeId}
+                position={[coords.lat, coords.lng]}
+                zIndexOffset={selectedEmployeeId === item.employeeId ? 10000 : index}
+                icon={buildStaffMarkerIcon({
+                  initials: getInitials(item.fullName),
+                  tone: item.checkOutTime ? 'done' : 'working',
+                  active: selectedEmployeeId === item.employeeId,
+                  countdownLabel,
+                })}
+                eventHandlers={{ click: () => setSelectedEmployeeId(item.employeeId) }}
+              >
                 <Popup>
                   <div className="manager-member-popup">
                     <div className="manager-member-popup-head">
@@ -408,8 +491,8 @@ return (
                   </div>
                 </Popup>
               </Marker>
-            ) : null
-          )}
+            );
+          })}
         </MapContainer>
         
         {/* 3. LỚP UI ĐIỀU KHIỂN TRÊN BẢN ĐỒ */}
@@ -474,18 +557,31 @@ return (
 
             <div className="manager-attendee-list">
               {attendees.length === 0 ? <p className="manager-attendee-empty">Chưa có nhân viên check-in trong zone hôm nay.</p> : (
-                attendees.map((item) => (
-                  <button type="button" className={`manager-attendee-item ${selectedEmployeeId === item.employeeId ? 'active' : ''}`} key={`list-${item.employeeId}`} onClick={() => focusOnEmployee(item)}>
-                    <div className="manager-attendee-head">
-                      <div className="manager-attendee-person">
-                        <div className="manager-attendee-avatar">{getInitials(item.fullName)}</div>
-                        <div><div className="manager-attendee-name">{item.fullName}</div><div className="manager-attendee-code">{item.employeeCode || 'N/A'}</div></div>
+                attendees.map((item) => {
+                  const inside = getEffectiveInside(item);
+                  const outZone = !item.checkOutTime && !inside;
+                  const cd = outZone ? getOutCountdownLive(item.employeeId) : null;
+                  return (
+                    <button
+                      type="button"
+                      className={`manager-attendee-item ${selectedEmployeeId === item.employeeId ? 'active' : ''} ${outZone ? 'manager-attendee-item--out-zone' : ''}`}
+                      key={`list-${item.employeeId}`}
+                      onClick={() => focusOnEmployee({ ...item, latitude: getItemCoords(item)?.lat, longitude: getItemCoords(item)?.lng })}
+                    >
+                      <div className="manager-attendee-head">
+                        <div className="manager-attendee-person">
+                          <div className="manager-attendee-avatar">{getInitials(item.fullName)}</div>
+                          <div><div className="manager-attendee-name">{item.fullName}</div><div className="manager-attendee-code">{item.employeeCode || 'N/A'}</div></div>
+                        </div>
+                        <div className={`manager-attendee-status ${item.checkOutTime ? 'done' : 'working'}`}>{item.checkOutTime ? 'Đã out' : 'Đang làm'}</div>
                       </div>
-                      <div className={`manager-attendee-status ${item.checkOutTime ? 'done' : 'working'}`}>{item.checkOutTime ? 'Đã out' : 'Đang làm'}</div>
-                    </div>
-                    <div className="manager-attendee-meta"><span>In: {formatTime(item.checkInTime)}</span><span>Out: {item.checkOutTime ? formatTime(item.checkOutTime) : '--:--'}</span></div>
-                  </button>
-                ))
+                      <div className="manager-attendee-meta"><span>In: {formatTime(item.checkInTime)}</span><span>Out: {item.checkOutTime ? formatTime(item.checkOutTime) : '--:--'}</span></div>
+                      {outZone && cd != null && (
+                        <div className="manager-attendee-outzone">Tự động checkout sau: <strong>{formatMMSS(cd)}</strong></div>
+                      )}
+                    </button>
+                  );
+                })
               )}
             </div>
           </div>
