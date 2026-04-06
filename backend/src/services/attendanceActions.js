@@ -276,4 +276,5 @@ module.exports = {
   normalizeWorkLocation,
   haversineDistanceMeters,
   WIFI_IP_DENIED_MESSAGE,
+  emitAttendanceChanged,
 };

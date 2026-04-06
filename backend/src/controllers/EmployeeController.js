@@ -317,12 +317,13 @@ exports.getManagerZoneAttendance = async (req, res) => {
         const distanceMeters = hasCoords && radiusMeters != null ? haversineDistanceMeters(lat, lng, centerLat, centerLng) : null;
         const isInsideZone = radiusMeters == null ? hasCoords : hasCoords && distanceMeters <= radiusMeters;
         return { employeeId: row.employee_id, employeeCode: row.employee_code || null, fullName: row.full_name || 'Nhân viên', departmentName: row.department_name || null, positionName: row.position_name || null, checkInTime: row.check_in_time, checkOutTime: row.check_out_time, status: row.status || null, latitude: hasCoords ? lat : null, longitude: hasCoords ? lng : null, distanceMeters: distanceMeters == null ? null : Number(distanceMeters.toFixed(2)), isInsideZone };
-      }).filter((item) => item.isInsideZone);
+      });
 
+    const totalInZone = attendees.filter((item) => item.isInsideZone).length;
     const checkedOutCount = attendees.filter((item) => item.checkOutTime).length;
-    const checkedInOnlyCount = attendees.length - checkedOutCount;
+    const checkedInOnlyCount = attendees.filter((item) => !item.checkOutTime && item.isInsideZone).length;
 
-    return res.status(200).json({ success: true, data: { workLocation, zoneStats: { totalInZone: attendees.length, checkedInOnly: checkedInOnlyCount, checkedOut: checkedOutCount }, attendees } });
+    return res.status(200).json({ success: true, data: { workLocation, zoneStats: { totalInZone, checkedInOnly: checkedInOnlyCount, checkedOut: checkedOutCount }, attendees } });
   } catch (error) { return res.status(500).json({ success: false, message: 'Lỗi server', error: error.message }); } 
 };
 

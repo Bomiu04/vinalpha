@@ -41,6 +41,7 @@ io.on('connection', (socket) => {
   });
 });
 
+// Auto check-out sau 5 phút rời vùng (Haversine + outOfZoneTrackers) xử lý trong track_location → geofencingService.js
 const { registerGeofencingSocket } = require('./services/geofencingService');
 registerGeofencingSocket(io);
 

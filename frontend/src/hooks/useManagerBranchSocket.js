@@ -10,6 +10,7 @@ import { getManagerSocket } from '../services/managerSocket';
  * @param {(payload: object) => void} opts.onManagerAlert — geofence_manager_alert
  * @param {() => void} [opts.onAdminLocationsUpdated] — io.emit('admin_locations_updated') từ API cấu hình địa điểm
  * @param {(data: object) => void} [opts.onEmployeeLocationUpdate] — broadcast từ mobile track_location
+ * @param {(data: { employee_id: number, secondsRemaining: number|null }) => void} [opts.onEmployeeOutOfZoneTick]
  */
 export function useManagerBranchSocket({
   branchId,
@@ -18,6 +19,7 @@ export function useManagerBranchSocket({
   onManagerAlert,
   onAdminLocationsUpdated,
   onEmployeeLocationUpdate,
+  onEmployeeOutOfZoneTick,
 }) {
   useEffect(() => {
     if (!socketUrl || !onAdminLocationsUpdated) return;
@@ -59,13 +61,19 @@ export function useManagerBranchSocket({
     socket.on('connect', joinRoom);
     if (socket.connected) joinRoom();
 
+    const onOutTick = (data) => {
+      onEmployeeOutOfZoneTick?.(data);
+    };
+
     socket.on('attendance_changed', onAttendance);
     socket.on('geofence_manager_alert', onAlert);
+    socket.on('employee_out_of_zone_tick', onOutTick);
 
     return () => {
       socket.off('connect', joinRoom);
       socket.off('attendance_changed', onAttendance);
       socket.off('geofence_manager_alert', onAlert);
+      socket.off('employee_out_of_zone_tick', onOutTick);
     };
-  }, [branchId, socketUrl, onAttendanceChanged, onManagerAlert]);
+  }, [branchId, socketUrl, onAttendanceChanged, onManagerAlert, onEmployeeOutOfZoneTick]);
 }

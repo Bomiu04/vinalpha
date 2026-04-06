@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Circle, CircleMarker, Marker, Popup, useMap } 
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { ChevronLeft, ChevronRight, Fingerprint, Wifi, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { getManagerSocket, socketOriginFromApiBase } from '../../services/managerSocket';
 
 import './CheckIn.css';
@@ -46,6 +47,13 @@ const formatTime = (isoOrTs) => {
   const d = new Date(isoOrTs);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatMMSS = (totalSeconds) => {
+  const s = Math.max(0, Math.ceil(Number(totalSeconds) || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
 };
 
 const buildPingIcon = (color, title) => {
@@ -101,6 +109,10 @@ const CheckIn = () => {
   const [isWifiValid, setIsWifiValid] = useState(true);
   /** true = ngoài vùng bán kính (khóa chấm công khi có radius). */
   const [isOutZone, setIsOutZone] = useState(true);
+  /** Đồng bộ từ socket out_of_zone_status (remaining tại thời điểm sync). */
+  const outZoneServerRef = useRef({ remaining: 0, at: 0 });
+  const [serverOutZoneSynced, setServerOutZoneSynced] = useState(false);
+  const [outZoneUiTick, setOutZoneUiTick] = useState(0);
 
   const watchIdRef = useRef(null);
   const mapRef = useRef(null);
@@ -216,11 +228,91 @@ const CheckIn = () => {
       console.log('🔄 Admin vừa cập nhật vùng chấm công. Đang tải lại...');
       void fetchSummary();
     };
+    const personalEventName = `personal_event_${employeeId}`;
+    const outZoneEventName = `out_of_zone_status_${employeeId}`;
+    const onPersonalEvent = (data) => {
+      if (data?.action === 'AUTO_CHECKOUT') {
+        toast.error('BẠN ĐÃ BỊ HỆ THỐNG CHECK-OUT TỰ ĐỘNG', {
+          duration: 9000,
+          style: {
+            fontSize: '1.25rem',
+            fontWeight: 800,
+            padding: '22px 28px',
+            maxWidth: 520,
+            textAlign: 'center',
+            lineHeight: 1.35,
+          },
+        });
+        setShowCheckoutConfirm(false);
+        outZoneServerRef.current = { remaining: 0, at: 0 };
+        setServerOutZoneSynced(false);
+        void fetchSummary();
+      }
+    };
+    const onOutZoneStatus = (payload) => {
+      if (payload?.secondsRemaining == null) {
+        outZoneServerRef.current = { remaining: 0, at: 0 };
+        setServerOutZoneSynced(false);
+        return;
+      }
+      const r = Number(payload.secondsRemaining);
+      outZoneServerRef.current = { remaining: Number.isFinite(r) ? r : 0, at: Date.now() };
+      setServerOutZoneSynced(true);
+    };
     socket.on('admin_locations_updated', onLocationsUpdated);
+    socket.on(personalEventName, onPersonalEvent);
+    socket.on(outZoneEventName, onOutZoneStatus);
     return () => {
       socket.off('admin_locations_updated', onLocationsUpdated);
+      socket.off(personalEventName, onPersonalEvent);
+      socket.off(outZoneEventName, onOutZoneStatus);
     };
   }, [employeeId, fetchSummary]);
+
+  /** Gửi vị trí lên server khi đang trong ca — để đồng hồ rời vùng + auto checkout khớp backend. */
+  useEffect(() => {
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!employeeId || !token || !canCheckOut) return undefined;
+    const socket = getManagerSocket(SOCKET_ORIGIN);
+    const sendTrack = () => {
+      const p = gpsPosRef.current;
+      if (!p || !Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) return;
+      socket.emit('track_location', {
+        latitude: p.latitude,
+        longitude: p.longitude,
+        timestamp: Date.now(),
+      });
+    };
+    const auth = () => socket.emit('authenticate_tracking', { token });
+    socket.on('connect', auth);
+    if (socket.connected) auth();
+    window.setTimeout(sendTrack, 400);
+    const iv = window.setInterval(sendTrack, 5000);
+    return () => {
+      socket.off('connect', auth);
+      window.clearInterval(iv);
+    };
+  }, [employeeId, canCheckOut]);
+
+  useEffect(() => {
+    if (!isOutZone || !canCheckOut) {
+      outZoneServerRef.current = { remaining: 0, at: 0 };
+      setServerOutZoneSynced(false);
+      return undefined;
+    }
+    const id = window.setInterval(() => setOutZoneUiTick((n) => n + 1), 250);
+    return () => window.clearInterval(id);
+  }, [isOutZone, canCheckOut]);
+
+  void outZoneUiTick;
+  const outZoneBannerSeconds =
+    !isOutZone || !canCheckOut || !serverOutZoneSynced
+      ? null
+      : (() => {
+          const { remaining, at } = outZoneServerRef.current;
+          if (!at) return null;
+          return Math.max(0, remaining - (Date.now() - at) / 1000);
+        })();
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -378,8 +470,28 @@ const CheckIn = () => {
     (workLocation.radius_meters != null && isOutZone) ||
     wifiIpBlocks;
 
+  const showOutZoneBanner =
+    isOutZone &&
+    canCheckOut &&
+    workLocation != null &&
+    workLocation.radius_meters != null &&
+    Number(workLocation.radius_meters) > 0;
+
   return (
     <div className="checkin-shell">
+      {showOutZoneBanner && (
+        <div className="checkin-outzone-banner" role="alert">
+          <span className="checkin-outzone-banner-text">
+            ⚠️ CẢNH BÁO: BẠN ĐANG NGOÀI VÙNG CHẤM CÔNG! Tự động Check-out sau:{' '}
+            <strong className="checkin-outzone-banner-time">
+              {serverOutZoneSynced && outZoneBannerSeconds != null ? formatMMSS(outZoneBannerSeconds) : '— —:— —'}
+            </strong>
+          </span>
+          {!serverOutZoneSynced && (
+            <span className="checkin-outzone-banner-hint"> Đang đồng bộ thời gian với máy chủ…</span>
+          )}
+        </div>
+      )}
       <div className="checkin-map-wrapper">
         <MapContainer
           className="checkin-map"
