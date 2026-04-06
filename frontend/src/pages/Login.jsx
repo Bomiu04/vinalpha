@@ -10,7 +10,9 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState('LOGIN'); 
+  const [mode, setMode] = useState('LOGIN');
+  /** Username thật từ server — form đổi mật lần đầu cần đúng khóa lookup, không phải email người dùng gõ */
+  const [firstLoginIdentifier, setFirstLoginIdentifier] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -58,6 +60,7 @@ const Login = () => {
 
       if (data.success) {
         if (data.require_pass_change) {
+          setFirstLoginIdentifier(data.user?.username || email);
           setMode('FIRST_CHANGE_PASS');
           return;
         }
@@ -155,9 +158,12 @@ const Login = () => {
             </form>
           </>
         ) : (
-          <FirstLoginChangePass 
-            username={email} 
-            onSuccess={() => setMode('LOGIN')} 
+          <FirstLoginChangePass
+            username={firstLoginIdentifier}
+            onSuccess={() => {
+              setFirstLoginIdentifier('');
+              setMode('LOGIN');
+            }}
           />
         )}
         

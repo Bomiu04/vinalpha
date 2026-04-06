@@ -59,8 +59,8 @@ const createUser = async (req, res) => {
     }
 
     const insertUserQuery = `
-      INSERT INTO user_account (employee_id, username, password_hash, role_code, status)
-      VALUES (:finalEmployeeId, :username, crypt(:password, gen_salt('bf')), :role, :status)
+      INSERT INTO user_account (employee_id, username, password_hash, role_code, status, require_pass_change)
+      VALUES (:finalEmployeeId, :username, crypt(:password, gen_salt('bf')), :role, :status, true)
       RETURNING id, username;
     `;
     const [userResult] = await db.query(insertUserQuery, {
@@ -156,25 +156,48 @@ const getEmployeesWithoutAccount = async (req, res) => {
 const adminForceResetPassword = async (req, res) => {
   try {
     const { email } = req.body;
+    if (!email || String(email).trim() === '') {
+      return res.status(400).json({ success: false, message: 'Thiếu email!' });
+    }
+
     const temporaryPassword = 'Welcome@' + Math.floor(1000 + Math.random() * 9000);
 
-    // 1. Cập nhật Pass mới và Bật cờ bắt buộc đổi mật khẩu
+    // 1. Cập nhật Pass mới và Bật cờ bắt buộc đổi mật khẩu (khớp personal_email hoặc work_email — đồng bộ với danh sách user admin)
     const updateQuery = `
       UPDATE user_account 
       SET password_hash = crypt(:pass, gen_salt('bf')),
           require_pass_change = true
-      WHERE employee_id = (SELECT id FROM employee WHERE personal_email = :email LIMIT 1)
+      WHERE employee_id = (
+        SELECT id FROM employee 
+        WHERE personal_email = :email OR work_email = :email 
+        LIMIT 1
+      )
     `;
 
-    await db.query(updateQuery, { 
+    const [, metadata] = await db.query(updateQuery, { 
       replacements: { pass: temporaryPassword, email: email } 
     });
 
+    if (!metadata || metadata.rowCount === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Không tìm thấy tài khoản gắn với email này hoặc nhân viên chưa có user đăng nhập.'
+      });
+    }
+
     // 2. Lấy thông tin để gửi mail
-    const [user] = await db.query(
-      "SELECT full_name, username FROM employee e JOIN user_account ua ON e.id = ua.employee_id WHERE e.personal_email = :email",
+    const users = await db.query(
+      `SELECT full_name, username FROM employee e 
+       JOIN user_account ua ON e.id = ua.employee_id 
+       WHERE e.personal_email = :email OR e.work_email = :email 
+       LIMIT 1`,
       { replacements: { email }, type: db.QueryTypes.SELECT }
     );
+
+    const user = users && users[0];
+    if (!user) {
+      return res.status(500).json({ success: false, message: 'Lỗi lấy thông tin người dùng sau khi cập nhật.' });
+    }
 
     // 3. Gửi email cấp mật khẩu tạm thời
     await sendAccountEmail(email, user.full_name, user.username, temporaryPassword);
@@ -182,6 +205,7 @@ const adminForceResetPassword = async (req, res) => {
     res.status(200).json({ success: true, message: 'Đã reset và bật cờ đổi mật khẩu thành công!' });
 
   } catch (error) {
+    console.error('adminForceResetPassword:', error);
     res.status(500).json({ success: false, message: 'Lỗi hệ thống' });
   }
 };

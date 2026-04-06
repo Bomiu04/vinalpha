@@ -320,43 +320,86 @@ if (send_email === true || send_email === 'true') {
   }
 };
 const deleteEmployee = async (req, res) => {
-  const t = await db.transaction(); // Khởi tạo Transaction
+  const t = await db.transaction();
 
   try {
     const { id } = req.params;
 
-    // 1. Kiểm tra xem nhân viên có tồn tại không
-    const emp = await db.query("SELECT id FROM employee WHERE id = :id", {
+    const emp = await db.query('SELECT id FROM employee WHERE id = :id', {
       replacements: { id },
-      type: db.QueryTypes.SELECT
+      type: db.QueryTypes.SELECT,
+      transaction: t
     });
 
     if (emp.length === 0) {
+      await t.rollback();
       return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
 
-    // 2. Xóa tài khoản đăng nhập (user_account) trước để tránh lỗi khóa ngoại
-    await db.query("DELETE FROM user_account WHERE employee_id = :id", {
+    // Bỏ tham chiếu tới nhân viên (tránh RESTRICT khi xóa)
+    await db.query('UPDATE department SET manager_id = NULL WHERE manager_id = :id', {
       replacements: { id },
-      type: db.QueryTypes.DELETE,
+      transaction: t
+    });
+    await db.query('UPDATE employee SET direct_manager_id = NULL WHERE direct_manager_id = :id', {
+      replacements: { id },
+      transaction: t
+    });
+    await db.query('UPDATE leave_request SET approver_id = NULL WHERE approver_id = :id', {
+      replacements: { id },
       transaction: t
     });
 
-    // 3. Xóa hồ sơ nhân viên
-    await db.query("DELETE FROM employee WHERE id = :id", {
+    // Các bảng FK tới employee thường là ON DELETE RESTRICT — xóa trước khi xóa employee
+    await db.query('DELETE FROM attendance WHERE employee_id = :id', {
       replacements: { id },
-      type: db.QueryTypes.DELETE,
+      transaction: t
+    });
+    await db.query('DELETE FROM hr_decision WHERE employee_id = :id', {
+      replacements: { id },
+      transaction: t
+    });
+    await db.query('DELETE FROM leave_request WHERE employee_id = :id', {
+      replacements: { id },
+      transaction: t
+    });
+    await db.query('DELETE FROM overtime_request WHERE employee_id = :id', {
+      replacements: { id },
+      transaction: t
+    });
+    await db.query('DELETE FROM contract WHERE employee_id = :id', {
+      replacements: { id },
+      transaction: t
+    });
+    await db.query('DELETE FROM payroll WHERE employee_id = :id', {
+      replacements: { id },
       transaction: t
     });
 
-    // Nếu mọi thứ trơn tru -> Lưu thay đổi
+    await db.query('DELETE FROM user_account WHERE employee_id = :id', {
+      replacements: { id },
+      transaction: t
+    });
+
+    await db.query('DELETE FROM employee WHERE id = :id', {
+      replacements: { id },
+      transaction: t
+    });
+
     await t.commit();
     res.status(200).json({ success: true, message: 'Xóa nhân viên thành công' });
-
   } catch (error) {
-    // Nếu có lỗi -> Hoàn tác toàn bộ
     await t.rollback();
     console.error('Lỗi API deleteEmployee:', error);
+    const pgCode = error.original?.code || error.parent?.code;
+    const msg = String(error.original?.message || error.message || '');
+    if (pgCode === '23503' || msg.includes('foreign key') || msg.includes('violates foreign key')) {
+      return res.status(409).json({
+        success: false,
+        message:
+          'Không thể xóa nhân viên vì vẫn còn dữ liệu liên quan trong hệ thống. Vui lòng thử lại hoặc liên hệ quản trị.'
+      });
+    }
     res.status(500).json({ success: false, message: 'Lỗi Server khi xóa nhân viên' });
   }
 };

@@ -207,22 +207,35 @@ const resetPassword = async (req, res) => {
 };
 
 const changePasswordFirstLogin = async (req, res) => {
-  const { username, oldPassword, newPassword } = req.body;
+  const { username: loginId, oldPassword, newPassword } = req.body;
 
   try {
-    // 1. Kiểm tra tài khoản và mật khẩu cũ có khớp không
+    if (!loginId || !oldPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đủ thông tin!' });
+    }
+
+    // 1. Giống đăng nhập: cho phép username hoặc email công ty/cá nhân; chỉ tài khoản đang bắt buộc đổi mật khẩu
     const checkQuery = `
-      SELECT id FROM user_account 
-      WHERE username = :username 
-      AND password_hash = crypt(:oldPassword, password_hash)
+      SELECT ua.id
+      FROM user_account ua
+      JOIN employee e ON ua.employee_id = e.id
+      WHERE (ua.username = :loginId OR e.work_email = :loginId OR e.personal_email = :loginId)
+        AND ua.status = 'active'
+        AND ua.require_pass_change = true
+        AND crypt(:oldPassword, ua.password_hash) = ua.password_hash
+      LIMIT 1
     `;
-    const [user] = await db.query(checkQuery, {
-      replacements: { username, oldPassword },
+    const rows = await db.query(checkQuery, {
+      replacements: { loginId, oldPassword },
       type: db.QueryTypes.SELECT
     });
+    const user = rows && rows[0];
 
     if (!user) {
-      return res.status(401).json({ success: false, message: "Mật khẩu cũ không chính xác!" });
+      return res.status(401).json({
+        success: false,
+        message: 'Mật khẩu tạm không đúng, hoặc tài khoản không còn ở trạng thái bắt buộc đổi mật khẩu.'
+      });
     }
 
     // 2. Cập nhật mật khẩu mới và tắt cờ bắt buộc đổi mật khẩu
