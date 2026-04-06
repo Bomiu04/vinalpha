@@ -11,26 +11,40 @@ const {
   impliedSpeedMetersPerSecond,
   isWeakGpsAccuracy,
 } = require('../utils/geoUtils');
-const { fetchWorkLocation, fetchTodayAttendance, checkInEmployee, checkOutEmployee } = require('./attendanceActions');
+const {
+  fetchWorkLocation,
+  fetchTodayAttendance,
+  checkInEmployee,
+  checkOutEmployee,
+  emitAttendanceChanged,
+} = require('./attendanceActions');
 
 const GRACE_MS = 5 * 60 * 1000;
+const OUT_ZONE_AUTO_SEC = 300;
 const HARD_BUFFER_M = 300;
 const MAX_SPEED_MPS = 40;
 const ACCURACY_WARN_M = 80;
 
-const AUTO_CHECKOUT_NOTE = 'Tự động checkout do rời vị trí';
 const AUTO_CHECKOUT_NOTE_HARD = 'Tự động checkout do rời xa vùng làm việc';
 
-/** @type {Map<string, { last?: { lat, lng, t, accuracy? }, graceTimer?: ReturnType<typeof setTimeout>, leaveWarningSent?: boolean }>} */
+/**
+ * Theo dõi rời vùng mềm: { startTime: number } theo employee_id (hoặc legacy: chỉ số timestamp).
+ * startTime = Date.now() tại lần đầu vượt bán kính (chưa quá HARD_BUFFER).
+ */
+const outOfZoneTrackers = {};
+
+/** Haversine — cùng ý nghĩa với geoUtils (mét). */
+const getDistanceFromLatLonInMeters = (lat1, lon1, lat2, lon2) =>
+  haversineDistanceMeters(lat1, lon1, lat2, lon2);
+
+/** @type {Map<string, { last?: { lat, lng, t, accuracy? }, leaveWarningSent?: boolean }>} */
 const employeeTrackState = new Map();
 
 function clearGraceTimer(employeeId) {
   const st = employeeTrackState.get(employeeId);
   if (!st) return;
-  if (st.graceTimer) clearTimeout(st.graceTimer);
   employeeTrackState.set(employeeId, {
     ...st,
-    graceTimer: undefined,
     leaveWarningSent: false,
   });
 }
@@ -64,6 +78,36 @@ function emitManagerAlert(io, branchId, payload) {
 
 function emitEmployee(io, employeeId, event, payload) {
   if (io) io.to(`employee_${employeeId}`).emit(event, payload);
+}
+
+function getOutZoneStartMs(uid) {
+  const v = outOfZoneTrackers[uid];
+  if (v == null) return null;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'object' && v.startTime != null) return Number(v.startTime);
+  return null;
+}
+
+function setOutZoneStart(uid) {
+  outOfZoneTrackers[uid] = { startTime: Date.now() };
+}
+
+/** Đồng bộ đồng hồ client + quản lý: secondsRemaining null = trong vùng / không áp dụng. */
+function emitOutOfZoneStatus(io, workLocation, employeeId, secondsRemaining) {
+  const sr =
+    secondsRemaining == null || Number.isNaN(Number(secondsRemaining))
+      ? null
+      : Math.max(0, Number(secondsRemaining));
+  const payload = { secondsRemaining: sr };
+  emitEmployee(io, employeeId, 'out_of_zone_status', payload);
+  if (io) io.emit(`out_of_zone_status_${employeeId}`, payload);
+  const room = branchRoom(workLocation?.branch_id);
+  if (io && room) {
+    io.to(room).emit('employee_out_of_zone_tick', {
+      employee_id: employeeId,
+      secondsRemaining: sr,
+    });
+  }
 }
 
 /**
@@ -127,7 +171,7 @@ async function processTrackLocation(io, employeeId, payload) {
   const centerLat = Number(workLocation.latitude);
   const centerLng = Number(workLocation.longitude);
   const radius = workLocation.radius_meters == null ? 100 : Number(workLocation.radius_meters);
-  const dist = haversineDistanceMeters(lat, lng, centerLat, centerLng);
+  const dist = getDistanceFromLatLonInMeters(lat, lng, centerLat, centerLng);
   const inside = dist <= radius;
   const beyondHard = dist > radius + HARD_BUFFER_M;
 
@@ -158,18 +202,23 @@ async function processTrackLocation(io, employeeId, payload) {
   }
 
   if (hasCheckOut) {
+    delete outOfZoneTrackers[employeeId];
     clearGraceTimer(employeeId);
+    emitOutOfZoneStatus(io, workLocation, employeeId, null);
     return;
   }
 
   // --- Đã check-in, chưa check-out ---
   if (inside) {
+    delete outOfZoneTrackers[employeeId];
     clearGraceTimer(employeeId);
+    emitOutOfZoneStatus(io, workLocation, employeeId, null);
     return;
   }
 
   // Ra khỏi vùng
   if (beyondHard) {
+    delete outOfZoneTrackers[employeeId];
     clearGraceTimer(employeeId);
     const out = await checkOutEmployee(employeeId, lat, lng, {
       deviceIp: 'socket:geofence',
@@ -184,11 +233,12 @@ async function processTrackLocation(io, employeeId, payload) {
         data: out.data,
       });
     }
+    emitOutOfZoneStatus(io, workLocation, employeeId, null);
     clearGraceTimer(employeeId);
     return;
   }
 
-  // Ngoài vùng nhưng chưa vượt ngưỡng cứng → grace 5 phút
+  // Ngoài vùng nhưng chưa vượt ngưỡng cứng → theo dõi theo giây (mỗi track_location)
   const st = employeeTrackState.get(employeeId) || {};
   if (!st.leaveWarningSent) {
     setState(employeeId, { leaveWarningSent: true });
@@ -200,52 +250,43 @@ async function processTrackLocation(io, employeeId, payload) {
     });
   }
 
-  if (!st.graceTimer) {
-    const timer = setTimeout(async () => {
-      try {
-        const latest = employeeTrackState.get(employeeId);
-        const last = latest?.last;
-        if (!last) return;
+  const uid = employeeId;
+  if (getOutZoneStartMs(uid) == null) setOutZoneStart(uid);
+  const startTime = getOutZoneStartMs(uid);
+  const diffSeconds = startTime != null ? (Date.now() - startTime) / 1000 : 0;
 
-        const att = await fetchTodayAttendance(employeeId);
-        if (!att?.check_in_time || att.check_out_time) {
-          clearGraceTimer(employeeId);
-          return;
-        }
-
-        const wl = await fetchWorkLocation(employeeId);
-        if (!wl) return;
-        const cLat = Number(wl.latitude);
-        const cLng = Number(wl.longitude);
-        const R = wl.radius_meters == null ? 100 : Number(wl.radius_meters);
-        const d = haversineDistanceMeters(last.lat, last.lng, cLat, cLng);
-
-        if (d <= R) {
-          clearGraceTimer(employeeId);
-          return;
-        }
-
-        const out = await checkOutEmployee(employeeId, last.lat, last.lng, {
-          deviceIp: 'socket:geofence:grace',
-          io,
-          skipGeofenceValidation: true,
-          skipWifiIpValidation: true,
-          checkOutNote: AUTO_CHECKOUT_NOTE,
-        });
-        if (out.ok) {
-          emitEmployee(io, employeeId, 'geofence_auto_checkout', {
-            message: AUTO_CHECKOUT_NOTE,
-            data: out.data,
-          });
-        }
+  if (diffSeconds >= OUT_ZONE_AUTO_SEC) {
+    try {
+      const [updateRows] = await db.query(
+        `UPDATE attendance
+         SET check_out_time = NOW(), status = 'early_leave'
+         WHERE employee_id = $1
+           AND check_out_time IS NULL
+           AND DATE(check_in_time) = CURRENT_DATE
+         RETURNING id`,
+        { bind: [employeeId] }
+      );
+      const row0 = updateRows?.[0];
+      delete outOfZoneTrackers[uid];
+      emitOutOfZoneStatus(io, workLocation, employeeId, null);
+      if (row0?.id != null) {
+        const msg = 'Hệ thống đã tự động Check-out do rời vùng quá 5 phút.';
+        io.emit(`personal_event_${uid}`, { action: 'AUTO_CHECKOUT', message: msg });
         clearGraceTimer(employeeId);
-      } catch (e) {
-        console.error('[geofence] grace checkout error:', e);
+        emitAttendanceChanged(io, workLocation, employeeId, 'checkout');
+        emitEmployee(io, employeeId, 'geofence_auto_checkout', {
+          message: msg,
+          data: row0,
+        });
       }
-    }, GRACE_MS);
-
-    setState(employeeId, { graceTimer: timer, leaveWarningSent: true });
+    } catch (e) {
+      console.error('[geofence] auto checkout (5 phút rời vùng):', e);
+    }
+    return;
   }
+
+  const secondsRemaining = Math.max(0, OUT_ZONE_AUTO_SEC - diffSeconds);
+  emitOutOfZoneStatus(io, workLocation, employeeId, secondsRemaining);
 }
 
 function registerGeofencingSocket(io) {
@@ -299,7 +340,7 @@ function registerGeofencingSocket(io) {
     });
 
     socket.on('disconnect', () => {
-      // Giữ grace timer theo employeeId — không hủy khi socket rớt (mobile có thể tạm ngắt).
+      // outOfZoneTrackers giữ theo employeeId — không xóa khi socket rớt (mobile có thể tạm ngắt).
     });
   });
 
@@ -310,6 +351,8 @@ module.exports = {
   registerGeofencingSocket,
   processTrackLocation,
   employeeTrackState,
+  outOfZoneTrackers,
+  getDistanceFromLatLonInMeters,
   GRACE_MS,
   HARD_BUFFER_M,
 };
