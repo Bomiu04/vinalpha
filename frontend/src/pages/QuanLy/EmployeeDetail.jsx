@@ -5,6 +5,7 @@ import { ArrowLeft, User, Briefcase, ShieldCheck, Mail, Phone, Hash, Loader2, Ke
 export default function EmployeeDetail({ employee, onBack, onEdit }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     // Gọi API kéo full data chi tiết của nhân viên này
@@ -45,6 +46,48 @@ export default function EmployeeDetail({ employee, onBack, onEdit }) {
   const formatDate = (dateString) => {
     if (!dateString) return "Chưa cập nhật";
     return new Date(dateString).toLocaleDateString('vi-VN');
+  };
+
+  const handleResetPassword = async () => {
+    if (!detail) return;
+
+    const mailTo = detail.personal_email || detail.work_email;
+    if (!mailTo || String(mailTo).trim() === '') {
+      alert(`Nhân viên ${detail.full_name || ''} chưa có email cá nhân hoặc email công ty. Không thể cấp lại mật khẩu!`);
+      return;
+    }
+
+    if (!detail.username) {
+      alert('Nhân viên này chưa có tài khoản đăng nhập. Không thể cấp lại mật khẩu!');
+      return;
+    }
+
+    if (!window.confirm(
+      `Xác nhận reset mật khẩu cho tài khoản ${detail.username}?\nHệ thống sẽ gửi mật khẩu tạm thời đến: ${mailTo}`
+    )) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const response = await axios.post(
+        'http://localhost:5000/api/admin/force-reset-password',
+        { email: mailTo },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+      );
+
+      if (response.data.success) {
+        alert(`Thành công! Mật khẩu mới đã được gửi đến: ${mailTo}.\nNhân viên sẽ phải đổi mật khẩu khi đăng nhập.`);
+      } else {
+        alert(response.data.message || 'Lỗi khi thực hiện reset mật khẩu!');
+      }
+    } catch (error) {
+      console.error('Lỗi API reset password:', error);
+      const errorMsg = error.response?.data?.message || 'Không thể kết nối đến máy chủ!';
+      alert(`Lỗi: ${errorMsg}`);
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   // MÀN HÌNH LOADING TRONG LÚC ĐỢI API
@@ -188,8 +231,21 @@ export default function EmployeeDetail({ employee, onBack, onEdit }) {
 
         {/* FOOTER ACTIONS */}
         <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
-          <button className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors font-medium text-sm shadow-sm">
-            <Key size={16} /> Cấp lại mật khẩu
+          <button
+            type="button"
+            onClick={handleResetPassword}
+            disabled={isResetting}
+            className="flex items-center gap-2 px-6 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-colors font-medium text-sm shadow-sm disabled:opacity-60 disabled:pointer-events-none"
+          >
+            {isResetting ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Đang gửi...
+              </>
+            ) : (
+              <>
+                <Key size={16} /> Cấp lại mật khẩu
+              </>
+            )}
           </button>
             <button 
             onClick={onEdit} 
