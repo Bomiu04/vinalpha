@@ -89,6 +89,7 @@ const MapInstanceRef = ({ mapRef, setIsMapReady }) => {
 
 const ManagerCheckIn = () => {
   const [workLocation, setWorkLocation] = useState(null);
+  const [workLocations, setWorkLocations] = useState([]);
   const [attendanceToday, setAttendanceToday] = useState({ checkInTime: null, checkOutTime: null });
   const [zoneStats, setZoneStats] = useState({ totalInZone: 0, checkedInOnly: 0, checkedOut: 0 });
   const [attendees, setAttendees] = useState([]);
@@ -132,23 +133,29 @@ const ManagerCheckIn = () => {
   const mapCenter = useMemo(() => [TEMP_HQ.latitude, TEMP_HQ.longitude], []);
 
   useEffect(() => {
-    if (!gps.position || !workLocation) {
+    if (!gps.position || (!workLocation && workLocations.length === 0)) {
       setIsOutZone(true);
       return;
     }
-    const r = workLocation.radius_meters;
-    if (r == null || r === '' || Number(r) <= 0) {
-      setIsOutZone(false);
-      return;
+    const locationsToCheck = workLocations.length > 0 ? workLocations : (workLocation ? [workLocation] : []);
+    let anyInside = false;
+    for (const wl of locationsToCheck) {
+      const r = wl.radius_meters;
+      if (r == null || r === '' || Number(r) <= 0) {
+        anyInside = true; break;
+      }
+      const distance = haversineDistanceMeters(
+        gps.position.latitude,
+        gps.position.longitude,
+        wl.latitude,
+        wl.longitude
+      );
+      if (distance <= Number(r)) {
+        anyInside = true; break;
+      }
     }
-    const distance = haversineDistanceMeters(
-      gps.position.latitude,
-      gps.position.longitude,
-      workLocation.latitude,
-      workLocation.longitude
-    );
-    setIsOutZone(distance > Number(r));
-  }, [gps.position, workLocation]);
+    setIsOutZone(!anyInside);
+  }, [gps.position, workLocation, workLocations]);
 
   const isInsideRadius = !isOutZone;
 
@@ -173,7 +180,10 @@ const ManagerCheckIn = () => {
     const res = await fetch(`${API_BASE}/employee/attendance/summary/${managerId}`);
     const json = await res.json().catch(() => ({}));
     if (!res.ok || !json.success) throw new Error(json.message || `Lỗi ${res.status}`);
-    setWorkLocation(json.data.workLocation);
+    const wl = json.data.workLocation;
+    const wls = json.data.workLocations || (wl ? [wl] : []);
+    setWorkLocation(wl);
+    setWorkLocations(wls);
     setAttendanceToday(json.data.attendanceToday);
   }, [managerId]);
 
@@ -279,15 +289,20 @@ const ManagerCheckIn = () => {
 
   const getEffectiveInside = useCallback(
     (item) => {
-      if (!workLocation) return item.isInsideZone !== false;
-      const r = workLocation.radius_meters;
-      if (r == null || r === '' || Number(r) <= 0) return true;
+      const locationsToCheck = workLocations.length > 0 ? workLocations : (workLocation ? [workLocation] : []);
+      if (locationsToCheck.length === 0) return item.isInsideZone !== false;
       const c = getItemCoords(item);
       if (!c) return item.isInsideZone;
-      const d = haversineDistanceMeters(c.lat, c.lng, workLocation.latitude, workLocation.longitude);
-      return d <= Number(r);
+
+      for (const wl of locationsToCheck) {
+        const r = wl.radius_meters;
+        if (r == null || r === '' || Number(r) <= 0) return true;
+        const d = haversineDistanceMeters(c.lat, c.lng, wl.latitude, wl.longitude);
+        if (d <= Number(r)) return true;
+      }
+      return false;
     },
-    [workLocation, getItemCoords]
+    [workLocation, workLocations, getItemCoords]
   );
 
   const getOutCountdownLive = useCallback((empId) => {
@@ -432,9 +447,14 @@ return (
           {baseLayer === 'normal' && <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />}
           {baseLayer === 'satellite' && <TileLayer attribution='Tiles &copy; Esri' url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />}
 
-          {workLocation && (
-            <Circle center={[workLocation.latitude, workLocation.longitude]} radius={workLocation.radius_meters || TEMP_HQ.radiusMeters} pathOptions={{ color: '#16a34a', weight: 3, fillColor: '#16a34a', fillOpacity: 0.18 }} />
-          )}
+          {workLocations.map((loc, idx) => {
+            const lat = loc.latitude;
+            const lng = loc.longitude;
+            if (!lat || !lng) return null;
+            return (
+              <Circle key={loc.work_location_id || idx} center={[lat, lng]} radius={loc.radius_meters || TEMP_HQ.radiusMeters} pathOptions={{ color: '#16a34a', weight: 3, fillColor: '#16a34a', fillOpacity: 0.18 }} />
+            );
+          })}
 
           {gps.position && (
             <CircleMarker center={[gps.position.latitude, gps.position.longitude]} radius={12} pathOptions={{ color: isInsideRadius ? '#16a34a' : '#dc2626', weight: 3, fillOpacity: 0.85 }} />

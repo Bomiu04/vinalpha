@@ -87,6 +87,7 @@ const MapInstanceRef = ({ mapRef, setIsMapReady }) => {
 
 const CheckIn = () => {
   const [workLocation, setWorkLocation] = useState(null);
+  const [workLocations, setWorkLocations] = useState([]);
   const [attendanceToday, setAttendanceToday] = useState({
     checkInTime: null,
     checkOutTime: null,
@@ -153,23 +154,29 @@ const CheckIn = () => {
   }, [workLocation, gps.position]);
 
   useEffect(() => {
-    if (!gps.position || !workLocation) {
+    if (!gps.position || (!workLocation && workLocations.length === 0)) {
       setIsOutZone(true);
       return;
     }
-    const r = workLocation.radius_meters;
-    if (r == null || r === '' || Number(r) <= 0) {
-      setIsOutZone(false);
-      return;
+    const locationsToCheck = workLocations.length > 0 ? workLocations : (workLocation ? [workLocation] : []);
+    let anyInside = false;
+    for (const wl of locationsToCheck) {
+      const r = wl.radius_meters;
+      if (r == null || r === '' || Number(r) <= 0) {
+        anyInside = true; break;
+      }
+      const distance = haversineDistanceMeters(
+        gps.position.latitude,
+        gps.position.longitude,
+        wl.latitude,
+        wl.longitude
+      );
+      if (distance <= Number(r)) {
+        anyInside = true; break;
+      }
     }
-    const distance = haversineDistanceMeters(
-      gps.position.latitude,
-      gps.position.longitude,
-      workLocation.latitude,
-      workLocation.longitude
-    );
-    setIsOutZone(distance > Number(r));
-  }, [gps.position, workLocation]);
+    setIsOutZone(!anyInside);
+  }, [gps.position, workLocation, workLocations]);
 
   const isInsideRadius = !isOutZone;
 
@@ -214,7 +221,9 @@ const CheckIn = () => {
         throw new Error(json.message || `Lỗi ${res.status}`);
       }
       const wl = json.data.workLocation;
+      const wls = json.data.workLocations || (wl ? [wl] : []);
       setWorkLocation(wl);
+      setWorkLocations(wls);
       if (!wl || !wl.wifi_ip_required) {
         setIsWifiValid(true);
       } else {
@@ -409,7 +418,41 @@ const CheckIn = () => {
       return;
     }
     if (isDone) {
-      setMessage('Bạn đã checkout hôm nay.');
+      if (attendanceToday.checkOutLatitude && attendanceToday.checkOutLongitude && workLocations) {
+        const locationsToCheck = workLocations.length > 0 ? workLocations : (workLocation ? [workLocation] : []);
+        let minDistance = Infinity;
+        let matchedRadius = 500;
+        
+        for (const wl of locationsToCheck) {
+          const r = wl.radius_meters ? Number(wl.radius_meters) : 500;
+          if (r <= 0) continue;
+          
+          const d = haversineDistanceMeters(
+            attendanceToday.checkOutLatitude,
+            attendanceToday.checkOutLongitude,
+            wl.latitude,
+            wl.longitude
+          );
+          
+          if (d < minDistance) {
+            minDistance = d;
+            matchedRadius = r;
+          }
+        }
+        
+        if (minDistance !== Infinity) {
+          if (minDistance > matchedRadius + 300) {
+            setMessage('Bạn đã bị tự động checkout rời khỏi vùng chấm công quá xa');
+          } else if (minDistance > matchedRadius) {
+            setMessage('Bạn đã bị tự checkout khi ra khỏi vùng chấm công quá 5 phút');
+          } else {
+            setMessage(`Bạn đã check out thành công lúc ${formatTime(attendanceToday.checkOutTime)} giờ`);
+          }
+          return;
+        }
+      }
+      
+      setMessage(`Bạn đã check out thành công lúc ${formatTime(attendanceToday.checkOutTime)} giờ`);
       return;
     }
     if (canCheckOut) {
@@ -429,7 +472,7 @@ const CheckIn = () => {
       return;
     }
     setMessage('Nhấn CHECK IN để bắt đầu ca.');
-  }, [workLocation, gps.position, isInsideRadius, canCheckOut, isDone, actionError, wifiIpBlocks]);
+  }, [workLocation, workLocations, gps.position, isInsideRadius, canCheckOut, isDone, actionError, wifiIpBlocks, attendanceToday]);
 
   useEffect(() => {
     if (!canCheckOut) setShowCheckoutConfirm(false);
@@ -546,36 +589,41 @@ const CheckIn = () => {
             />
           )}
 
-          {workLocation && (
-            <>
-              <Circle
-                center={[workLocation.latitude, workLocation.longitude]}
-                radius={workLocation.radius_meters || TEMP_HQ.radiusMeters}
-                pathOptions={{
-                  color: radarColor,
-                  weight: 3,
-                  fillColor: radarColor,
-                  fillOpacity: 0.2
-                }}
-              />
-              <Circle
-                center={[workLocation.latitude, workLocation.longitude]}
-                radius={workLocation.radius_meters || TEMP_HQ.radiusMeters}
-                pathOptions={{ color: radarColor, weight: 2, fillOpacity: 0, dashArray: '6 6' }}
-              />
-              <Marker
-                position={[workLocation.latitude, workLocation.longitude]}
-                icon={buildPingIcon('#16a34a', 'Trụ sở chính')}
-              >
-                <Popup>
-                  <div>
-                    <strong>{zoneDisplayName}</strong>
-                    <div>Bán kính: {Math.round(workLocation.radius_meters || TEMP_HQ.radiusMeters)} m</div>
-                  </div>
-                </Popup>
-              </Marker>
-            </>
-          )}
+          {workLocations.map((loc, idx) => {
+            const lat = loc.latitude;
+            const lng = loc.longitude;
+            if (!lat || !lng) return null;
+            return (
+              <React.Fragment key={loc.work_location_id || idx}>
+                <Circle
+                  center={[lat, lng]}
+                  radius={loc.radius_meters || TEMP_HQ.radiusMeters}
+                  pathOptions={{
+                    color: radarColor,
+                    weight: 3,
+                    fillColor: radarColor,
+                    fillOpacity: 0.2
+                  }}
+                />
+                <Circle
+                  center={[lat, lng]}
+                  radius={loc.radius_meters || TEMP_HQ.radiusMeters}
+                  pathOptions={{ color: radarColor, weight: 2, fillOpacity: 0, dashArray: '6 6' }}
+                />
+                <Marker
+                  position={[lat, lng]}
+                  icon={buildPingIcon('#16a34a', loc.location_name || 'Khu vực chấm công')}
+                >
+                  <Popup>
+                    <div>
+                      <strong>{loc.location_name || zoneDisplayName}</strong>
+                      <div>Bán kính: {Math.round(loc.radius_meters || TEMP_HQ.radiusMeters)} m</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              </React.Fragment>
+            );
+          })}
 
           {gps.position && (
             <>
