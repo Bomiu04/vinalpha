@@ -12,7 +12,7 @@ const fromEnv =
     : "";
 
 function defaultApiHost(): string {
-  return "192.168.11.19";
+  return "192.168.1.19";
 }
 
 export const YOUR_IPV4_ADDRESS =
