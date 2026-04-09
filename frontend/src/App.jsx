@@ -48,6 +48,7 @@ import Payroll from './pages/NhanVien/Payroll';
 import Requests from './pages/NhanVien/Requests';
 import Profile from './pages/NhanVien/Profile';
 import Contract from "./pages/NhanVien/Contract";
+import OvertimeRequest from "./pages/NhanVien/OvertimeRequest";
 
 // ===== LAYOUT =====
 import MainLayout from './layouts/MainLayout';
@@ -122,9 +123,11 @@ function App() {
           <Route path="/NhanVien/checkin" element={<CheckIn />} />
           <Route path="/NhanVien/CheckIn" element={<CheckIn />} /> {/* giữ để tránh sai URL */}
           <Route path="/NhanVien/payroll" element={<Payroll />} />
-          <Route path="/NhanVien/requests" element={<Requests />} />
+          
           <Route path="/NhanVien/profile" element={<Profile />} />
           <Route path="/NhanVien/contracts" element={<Contract />} />
+          <Route path="/NhanVien/requests/leave" element={<Requests />} />
+          <Route path="/NhanVien/requests/overtime" element={<OvertimeRequest />} />
 
         </Route>
 
