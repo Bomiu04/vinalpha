@@ -3,12 +3,18 @@ const cors = require('cors');
 const db = require('./config/database');
 const http = require('http'); // 1. Thêm http
 const { Server } = require('socket.io'); // 2. Thêm Server từ socket.io
+const payrollRoutes = require('./routes/payrollRoutes');
 require('dotenv').config();
 
 const app = express();
 
 // ================= 1. MIDDLEWARE =================
-app.use(cors());
+// Thay dòng app.use(cors()) cũ bằng đoạn sau:
+app.use(cors({
+  origin: "*", 
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+  credentials: true
+}));
 app.use(express.json({ limit: '100mb' })); 
 app.use(express.urlencoded({ limit: '100mb', extended: true, parameterLimit: 100000 }));
 app.use('/uploads', express.static('uploads'));
@@ -49,7 +55,7 @@ registerGeofencingSocket(io);
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/AdminRoutes');
 const directorRoutes = require('./routes/directorRoutes');
-const employeeRoutes = require('./routes/employeeRoutes');
+const employeeRoutes = require('./routes/EmployeeRoutes');
 const managementRoutes = require('./routes/managementRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 
@@ -60,6 +66,7 @@ app.use('/api/director', directorRoutes);
 app.use('/api/employee', employeeRoutes);
 app.use('/api/manager', managementRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/payroll', payrollRoutes);
 
 // --- ROUTES TEST ---
 app.get('/', (req, res) => {
@@ -80,16 +87,19 @@ app.use((err, req, res, next) => {
 }); 
 
 // ================= 6. CONNECT DB & START SERVER =================
+// Đảm bảo có dòng process.env.PORT này để Render tự động cấp port
 const PORT = process.env.PORT || 5000;
 
-db.authenticate()
-  .then(() => {
-    console.log('✅ Kết nối Database thành công!');
-    // Chạy server.listen thay vì app.listen
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Real-time Server running trên mọi thiết bị mạng nội bộ: Port ${PORT}`);
+// Bật Server lên TRƯỚC
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server đã mở cổng thành công tại port ${PORT}`);
+  
+  // Sau đó mới kết nối Database
+  db.authenticate()
+    .then(() => {
+      console.log('✅ Kết nối Database Supabase thành công!');
+    })
+    .catch(err => {
+      console.error('❌ Lỗi kết nối Database (Kiểm tra lại PASSWORD trên Render):', err.message);
     });
-  })
-  .catch(err => {
-    console.error('❌ Lỗi kết nối Database:', err);
-  });
+});
