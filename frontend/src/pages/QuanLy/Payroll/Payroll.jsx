@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { Calculator, Eye, FileSpreadsheet, Send, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, FileSpreadsheet, Send, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { payrollService } from '../../../services/payrollService'; 
 import PayrollDetailModal from './PayrollDetailModal';
 import * as XLSX from 'xlsx';
@@ -9,7 +9,12 @@ const Payroll = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState(null);
-  const [monthYear, setMonthYear] = useState('2026-03');
+  const [monthYear, setMonthYear] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}`;
+  });
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 15;
@@ -88,10 +93,9 @@ const Payroll = () => {
       'NLĐ Đóng BHXH (8%)': Math.round(item.empInsurance.bhxh),
       'NLĐ Đóng BHYT (1.5%)': Math.round(item.empInsurance.bhyt),
       'NLĐ Đóng BHTN (1%)': Math.round(item.empInsurance.bhtn),
-      'Thu Nhập Sau BH': Math.round(item.income_after_insurance),
-      'Doanh Nghiệp Đóng Thuế': Math.round(item.pitTax),
-      'Chi Phí Tiền Lương': Math.round(item.company_cost),
-      'Thực Nhận (NET)': Math.round(item.net_salary)
+      'Thực Nhận Tháng': Math.round(item.income_after_insurance),
+      'Tổng DN Đóng BH': Math.round(item.compInsurance.total), // Đã sửa logic
+      'Chi Phí Tiền Lương': Math.round(item.company_cost)
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -144,10 +148,8 @@ const Payroll = () => {
         <div className="overflow-auto flex-1 custom-scrollbar">
           <table className="w-full text-left text-[10.5px] xl:text-[11.5px] leading-tight whitespace-nowrap">
             <thead className="sticky top-0 z-30 shadow-[0_2px_5px_rgba(0,0,0,0.05)]">
-              {/* Tiêu đề nền vàng/kem nhạt, chữ xám đậm. Đã xóa divide-x để bỏ khung thô */}
               <tr className="bg-[#fdfcf5] text-gray-700 font-bold text-center">
                 <th rowSpan="2" className="p-2 min-w-[200px] sticky left-0 z-40 bg-[#fdfcf5] shadow-[2px_0_5px_rgba(0,0,0,0.04)] text-left pl-4 border-b border-gray-200">
-                  {/* Ô tick dễ click hơn nhờ thẻ label */}
                   <label className="flex items-center gap-3 cursor-pointer p-1 -m-1">
                     <input 
                       type="checkbox" 
@@ -158,7 +160,7 @@ const Payroll = () => {
                     <span>Tên Nhân Viên</span>
                   </label>
                 </th>
-                <th rowSpan="2" className="p-2 border-b border-gray-200">Thu Nhập Tháng</th>
+                <th rowSpan="2" className="p-2 border-b border-gray-200 text-blue-800">Thu Nhập Tháng</th>
                 <th rowSpan="2" className="p-2 border-b border-gray-200">Số Ngày Công</th>
                 <th rowSpan="2" className="p-2 border-b border-gray-200">Tăng Ca</th>
                 <th rowSpan="2" className="p-2 border-b border-gray-200 text-red-500">Kỷ Luật</th>
@@ -167,14 +169,13 @@ const Payroll = () => {
                 <th colSpan="3" className="p-1.5 border-b border-gray-200">Doanh Nghiệp Đóng BH</th>
                 <th colSpan="3" className="p-1.5 border-b border-gray-200">Người Lao Động Đóng BH</th>
                 
-                <th rowSpan="2" className="p-2 border-b border-gray-200">Thu Nhập Sau BH</th>
-                <th rowSpan="2" className="p-2 border-b border-gray-200 text-orange-500">Doanh Nghiệp Đóng Thuế</th>
+                <th rowSpan="2" className="p-2 border-b border-gray-200">Thực Nhận Tháng</th>
+                {/* ĐÃ SỬA TÊN CỘT TẠI ĐÂY */}
+                <th rowSpan="2" className="p-2 border-b border-gray-200 text-orange-500">Tổng DN Đóng BH</th>
                 <th rowSpan="2" className="p-2 border-b border-gray-200 text-indigo-700">Chi phí Tiền Lương</th>
                 
-                {/* Cột Action (trống tiêu đề) */}
                 <th rowSpan="2" className="w-16 sticky right-0 z-40 bg-[#fdfcf5] border-b border-gray-200 shadow-[-2px_0_5px_rgba(0,0,0,0.04)]"></th>
               </tr>
-              {/* Tỷ lệ % nằm dưới tên BH */}
               <tr className="bg-[#fdfcf5] text-gray-600 font-bold text-center border-b border-gray-200">
                 <th className="p-1.5"><div className="flex flex-col items-center"><span>BHXH</span><span className="text-[9px] font-semibold opacity-70 mt-0.5">17.5%</span></div></th>
                 <th className="p-1.5"><div className="flex flex-col items-center"><span>BHYT</span><span className="text-[9px] font-semibold opacity-70 mt-0.5">3%</span></div></th>
@@ -186,7 +187,6 @@ const Payroll = () => {
               </tr>
             </thead>
             
-            {/* Đã xóa divide-x để bỏ khung dọc */}
             <tbody className="font-medium text-gray-600">
               {currentData.length === 0 && !loading ? (
                 <tr><td colSpan="18" className="text-center py-16 text-gray-400 text-sm">Chưa có dữ liệu.</td></tr>
@@ -201,7 +201,6 @@ const Payroll = () => {
                       
                       <td className={`px-4 py-3 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.02)] ${stickyBg}`}>
                         <label className="flex items-center gap-3 cursor-pointer relative p-1 -m-1">
-                          {/* Vạch đỏ ở lề trái nếu chọn */}
                           {isSelected && <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-5 bg-red-500 rounded-r-sm z-50"></div>}
                           
                           <input 
@@ -217,7 +216,6 @@ const Payroll = () => {
                         </label>
                       </td>
                       
-                      {/* Các cột số tiền được tô đậm (font-bold) */}
                       <td className="px-2 py-3 text-right font-bold text-blue-800">{fmt(item.actual_salary)}</td>
                       <td className="px-2 py-3 text-center text-blue-600 font-bold bg-blue-50/10">{item.total_work_days}</td>
                       <td className="px-2 py-3 text-center text-gray-400">{item.overtime > 0 ? item.overtime : '-'}</td>
@@ -233,10 +231,12 @@ const Payroll = () => {
                       <td className="px-2 py-3 text-right">{fmt(item.empInsurance.bhtn)}</td>
                       
                       <td className="px-2 py-3 text-right font-bold text-gray-700 bg-gray-50/50">{fmt(item.income_after_insurance)}</td>
-                      <td className="px-2 py-3 text-right text-orange-500 font-bold">{fmt(item.pitTax)}</td>
+                      
+                      {/* ĐÃ SỬA RENDER DATA ĐÚNG VỚI CỘT MỚI: TỔNG DN ĐÓNG BH */}
+                      <td className="px-2 py-3 text-right text-orange-500 font-bold">{fmt(item.compInsurance.total)}</td>
+                      
                       <td className="px-2 py-3 text-right font-black text-indigo-600 bg-indigo-50/20">{fmt(item.company_cost)}</td>
                       
-                      {/* Nút Xem (Eye) */}
                       <td className={`px-2 py-3 text-center sticky right-0 z-10 shadow-[-2px_0_5px_rgba(0,0,0,0.02)] ${stickyBg}`}>
                         <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <button 
