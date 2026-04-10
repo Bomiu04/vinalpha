@@ -2,6 +2,7 @@ const db = require('../config/database');
 const { calculateTaxesAndInsurances } = require('../services/payrollService');
 
 const calculatePayroll = async (req, res) => {
+    console.log("🚀🚀🚀 CHÚ Ý: ĐÃ VÀO HÀM TÍNH LƯƠNG!!! Tháng:", req.query.monthYear);
     const { monthYear, departmentId } = req.query;
 
     try {
