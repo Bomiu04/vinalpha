@@ -1,12 +1,11 @@
-import axios from 'axios';
-const API_URL = 'https://kltn-gps-api.onrender.com/api/payroll';
+import axiosClient from '../api/axiosClient';
 
 export const payrollService = {
   getCalculation: async (monthYear, departmentId) => {
-    const response = await axios.get(`${API_URL}/calculate`, {
+    const response = await axiosClient.get('/payroll/calculate', {
       params: { monthYear, departmentId },
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     });
-    return response.data;
+    return response;
   }
 };

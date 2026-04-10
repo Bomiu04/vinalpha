@@ -50,15 +50,15 @@ const calculatePayroll = async (req, res) => {
                 `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time))/3600), 0) as ot_hours 
                  FROM overtime_request 
                  WHERE employee_id = :id AND to_char(ot_date, 'MM-YYYY') = :my AND status = 'approved'`,
-                { replacements: { id: emp.id, my: monthYear } }
+                { replacements: { id: emp.id, my: monthYear }, type: db.QueryTypes.SELECT }
             );
             
             // 1. THU NHẬP THÁNG = Lương Cơ Bản
             const base = parseFloat(emp.base_salary || 0);
             const actualSalary = base; 
             
-            const days = parseFloat(att[0].days || 0);
-            const otHours = parseFloat(ot[0].ot_hours || 0);
+            const days = parseFloat(att?.days || 0);
+            const otHours = parseFloat(ot?.ot_hours || 0);
             const overtimeMoney = otHours * (base / 22 / 8) * 1.5;
 
             // 2. TÍNH BẢO HIỂM (Dựa trên Lương CB)
