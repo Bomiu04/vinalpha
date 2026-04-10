@@ -89,6 +89,11 @@ app.use((err, req, res, next) => {
 // ================= 6. CONNECT DB & START SERVER =================
 // Đảm bảo có dòng process.env.PORT này để Render tự động cấp port
 const PORT = process.env.PORT || 5000;
+const isProduction = process.env.NODE_ENV === 'production';
+const dbUrl = process.env.DATABASE_URL || '';
+const isSupabaseConnection = /supabase\.com/i.test(dbUrl);
+const dbProviderLabel = isSupabaseConnection ? 'Supabase (Cloud PostgreSQL)' : 'PostgreSQL Local';
+const runtimeLabel = isProduction ? 'Production' : 'Development';
 
 // Bật Server lên TRƯỚC
 server.listen(PORT, '0.0.0.0', () => {
@@ -97,9 +102,9 @@ server.listen(PORT, '0.0.0.0', () => {
   // Sau đó mới kết nối Database
   db.authenticate()
     .then(() => {
-      console.log('✅ Kết nối Database Supabase thành công!');
+      console.log(`✅ [${runtimeLabel}] Đã kết nối Database: ${dbProviderLabel}`);
     })
     .catch(err => {
-      console.error('❌ Lỗi kết nối Database (Kiểm tra lại PASSWORD trên Render):', err.message);
+      console.error(`❌ [${runtimeLabel}] Lỗi kết nối Database (${dbProviderLabel}):`, err.message);
     });
 });

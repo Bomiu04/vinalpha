@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from "axios";
+import axiosClient from "../../api/axiosClient";
 import { HiMiniXCircle } from "react-icons/hi2";
 import { MdChatBubbleOutline } from "react-icons/md";
 import { BsSend } from "react-icons/bs";
@@ -32,10 +32,7 @@ const handleSubmit = async () => {
       approver_id: approverId
     };
 
-    await axios.post(
-      "http://localhost:5000/api/employee/overtime-request",
-      payload
-    );
+    await axiosClient.post("/employee/overtime-request", payload);
 
     alert("Gửi đơn tăng ca thành công!");
 
@@ -80,10 +77,10 @@ const handleSubmit = async () => {
     useEffect(() => {
     if (!user?.id) return;
 
-    axios
-        .get(`http://localhost:5000/api/employee/approvers/${user.id}`)
+    axiosClient
+        .get(`/employee/approvers/${user.id}`)
         .then((res) => {
-        setApprovers(res.data);
+        setApprovers(res);
         })
         .catch((err) => console.error(err));
     }, [user?.id]);

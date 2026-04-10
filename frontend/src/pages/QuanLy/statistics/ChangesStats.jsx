@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import axiosClient from '../../../api/axiosClient';
 
 const ChangesStats = () => {
 
@@ -13,11 +14,9 @@ const ChangesStats = () => {
   useEffect(() => {
     const fetchData = async () => {
         try {
-          const summaryRes = await fetch('https://kltn-gps-api.onrender.com/api/manager/stats/changes-summary');
-          const summaryData = await summaryRes.json();
+          const summaryData = await axiosClient.get('/manager/stats/changes-summary');
       
-          const listRes = await fetch('https://kltn-gps-api.onrender.com/api/manager/stats/changes-list');
-          const listData = await listRes.json();
+          const listData = await axiosClient.get('/manager/stats/changes-list');
       
           const total = Number(summaryData.total);
           const join = Number(summaryData.new_employees);

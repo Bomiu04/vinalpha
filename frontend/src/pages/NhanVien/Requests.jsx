@@ -254,10 +254,7 @@ const calculateTotalDays = (start, end) => {
   }
 
   try {
-    await axios.post(
-      "http://localhost:5000/api/employee/leave-request",
-      payload
-    );
+    await employeeService.createLeaveRequest(payload);
 
     setNotification("Gửi đơn thành công!");
     setShowConfirmSubmit(false);
