@@ -40,7 +40,7 @@ const Requests = () => {
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
 
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(localStorage.getItem("user")|| "{}");
 
   const [selectedRequest, setSelectedRequest] = useState(null);
 const [showModal, setShowModal] = useState(false);
@@ -102,7 +102,7 @@ const getAnnualUsedDays = () => {
   return requests
     .filter((r) => {
       // Đảm bảo loại đơn là annual và đã được duyệt
-      return r.leave_type === "annual" && r.status === "approved";
+return r.leave_type === "annual" && r.status === "approved";
     })
     .reduce((total, r) => {
       let start = new Date(r.start_datetime);
@@ -198,8 +198,9 @@ const calculateTotalDays = (start, end) => {
   employeeService
     .getLeaveRequests(user.id)
     .then((res) => {
-      setRequests(res.data);
-      setRecentRequests(res.data.slice(0, 3)); // lấy 3 đơn gần nhất
+      const data = res?.data || res || [];
+      setRequests(data);
+      setRecentRequests(data.slice(0, 3)); // lấy 3 đơn gần nhất
     })
     .catch((err) => console.error(err));
 }, [user?.id]);
@@ -208,15 +209,14 @@ const calculateTotalDays = (start, end) => {
   if (view !== "history") return;
   if (!user?.id) return;
 
-  axios
   employeeService
     .getLeaveRequests(user.id)
-    .then((res) => {
-      console.log("DATA:", res); // debug
-      setRequests(res || []);
+.then((res) => {
+      console.log("DATA:", res);
+      setRequests(res?.data || res || []);
     })
     .catch((err) => console.error(err));
-  }, [view, user?.id]);
+}, [view, user?.id]);
 
   // ----------------- Load approvers (trưởng trực tiếp + Director) -----------------
   useEffect(() => {
@@ -224,13 +224,12 @@ const calculateTotalDays = (start, end) => {
      if (view !== "create") return;
     if (!user?.id) return;
 
-    axios
+    employeeService
       .getApprovers(user.id)
       .then((res) => {
-        // res.data: [{id, full_name, role_code}, ...]
-        setApprovers(res || []);
+        setApprovers(res?.data || res || []);
       })
-      .catch((err) => console.error(err));
+    .catch((err) => console.error(err));
   }, [view,user?.id]);
 
   // ----------------- Submit -----------------
@@ -304,11 +303,18 @@ const handleCancelConfirm = () => {
   try {
         await employeeService.createLeaveRequest(payload);
 
-        setNotification("Gửi đơn thành công!");
-        setTimeout(() => setNotification(""), 3000);
-
+        // reload lại danh sách
         const res = await employeeService.getLeaveRequests(user.id);
-        setRequests(res || []);
+        const data = res?.data || res || [];
+
+        setRequests(data);
+        setRecentRequests(data.slice(0, 3));
+
+        // reset form
+        handleCancel();
+
+        setNotification("Gửi đơn thành công!");
+        setShowConfirmSubmit(false);
 
       } catch (err) {
         console.error(err);
@@ -322,8 +328,7 @@ const handleCancelConfirm = () => {
 
   const start = new Date(form.startDate);
   const end = new Date(form.endDate);
-
-  const diffTime = end - start;
+const diffTime = end - start;
 
   if (diffTime < 0) return 0;
 
@@ -417,7 +422,7 @@ const handleCancelConfirm = () => {
               <label>Ngày bắt đầu</label>
               <input
                 type="date"
-                className="input-option"
+className="input-option"
                 value={form.startDate}
                 onChange={(e) =>
                   setForm({ ...form, startDate: e.target.value })
@@ -505,7 +510,7 @@ const handleCancelConfirm = () => {
       {/* ================= HISTORY ================= */}
       <div className="history-page-header">
         <div>
-          <h2>Đơn đã gửi</h2>
+<h2>Đơn đã gửi</h2>
           <p>Tất cả các đơn bạn đã gửi</p>
         </div>
 
@@ -584,7 +589,7 @@ const handleCancelConfirm = () => {
                         </span>
                       </td>
                     </tr>
-                  ))
+))
                 )}
               </tbody>
             </table>
@@ -661,7 +666,7 @@ const handleCancelConfirm = () => {
                 </div>
                 <div className="info-section-bottom-right">
                   <p>
-                    {calculateTotalDays(selectedRequest.start_datetime, selectedRequest.end_datetime)}
+{calculateTotalDays(selectedRequest.start_datetime, selectedRequest.end_datetime)}
                   </p>
                 </div>
               </div>
@@ -748,7 +753,7 @@ const handleCancelConfirm = () => {
           >
             <path d="M23 12a11.02 11.02 0 0 0-22 0zm-11 0v9"></path>
             <path d="M9 21a3 3 0 0 0 6 0"></path>
-          </svg>
+</svg>
         </div>
 
         <div className="card-request-bot">
@@ -835,7 +840,7 @@ const handleCancelConfirm = () => {
           onClick={handleCancelConfirm}
         >
           Xóa dữ liệu
-        </button>
+</button>
 
         <button
           className="btn-cancel"
