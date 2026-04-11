@@ -64,13 +64,17 @@ const ResetPassword = () => {
         alert('Đổi mật khẩu thành công!');
         navigate('/login');
       } else {
-        // FUNC-TMK06: Mật khẩu mới trùng mật khẩu cũ (API Backend trả về)
+        // Lỗi logic từ Backend (Ví dụ: 200 OK nhưng success = false)
         setError(data.message || 'Có lỗi xảy ra, vui lòng thử lại.');
         setIsLoading(false);
       }
     } catch (err) {
-      console.error(err);
-      setError('Không thể kết nối đến máy chủ!');
+      console.error("Lỗi chi tiết từ Backend:", err);
+      
+      // 👉 LẤY CÂU BÁO LỖI 400 (TRÙNG MẬT KHẨU CŨ) TỪ BACKEND TRẢ VỀ
+      const serverMsg = err.response?.data?.message || 'Không thể kết nối đến máy chủ!';
+      
+      setError(serverMsg);
       setIsLoading(false);
     }
   };

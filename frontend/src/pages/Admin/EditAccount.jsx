@@ -4,8 +4,8 @@ import { ArrowLeft, UserSquare2, KeyRound, ShieldCheck, Lock, Mail, Save } from 
 const EditAccount = ({ user, onBack }) => {
   // Trạng thái lưu dữ liệu form chỉnh sửa (lấy giá trị mặc định từ user được truyền vào)
   const [formData, setFormData] = useState({
-    role: user?.role || 'HR Manager',
-    status: user?.status ? 'ACTIVE' : 'INACTIVE',
+    role: user?.role || 'EMPLOYEE',
+    status: user?.status ? 'active' : 'locked',
     sendEmail: true
   });
 
@@ -93,8 +93,8 @@ const EditAccount = ({ user, onBack }) => {
                 value={formData.role}
                 onChange={(e) => setFormData({...formData, role: e.target.value})}
               >
-                <option value="USER">User (Nhân viên bình thường)</option>
-                <option value="HR Manager">HR Manager (Quản lý Nhân sự)</option>
+                <option value="EMPLOYEE">User (Nhân viên bình thường)</option>
+                <option value="MANAGER">Manager (Quản lý)</option>
                 <option value="DIRECTOR">Director (Giám đốc)</option>
                 <option value="ADMIN">System Admin</option>
               </select>
@@ -103,12 +103,12 @@ const EditAccount = ({ user, onBack }) => {
               <label>Trạng thái tài khoản</label>
               <select 
                 className="ca-input-select" 
-                style={{ color: formData.status === 'ACTIVE' ? '#10b981' : '#ef4444', fontWeight: '500' }}
+                style={{ color: formData.status === 'active' ? '#10b981' : '#ef4444', fontWeight: '500' }}
                 value={formData.status}
                 onChange={(e) => setFormData({...formData, status: e.target.value})}
               >
-                <option value="ACTIVE">Đang hoạt động (Active)</option>
-                <option value="INACTIVE">Khóa tạm thời</option>
+                <option value="active">Đang hoạt động (Active)</option>
+                <option value="locked">Khóa (Locked)</option>
               </select>
             </div>
           </div>
