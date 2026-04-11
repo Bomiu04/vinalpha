@@ -7,13 +7,29 @@ require('dotenv').config();
 
 const app = express();
 
-// ================= 1. MIDDLEWARE =================
-// Thay dòng app.use(cors()) cũ bằng đoạn sau:
-app.use(cors({
-  origin: "*", 
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-  credentials: true
-}));
+// Phản hồi JSON luôn khai báo UTF-8 (trình duyệt / client parse đúng tiếng Việt)
+app.use((req, res, next) => {
+  const json = res.json.bind(res);
+  res.json = (body) => {
+    res.set('Content-Type', 'application/json; charset=utf-8');
+    return json(body);
+  };
+  next();
+});
+
+
+
+const corsOptions = {
+  origin: [
+    'https://hrmgpsattendance.web.app', 
+    'http://localhost:3000',            
+    'http://localhost:5173'             
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true 
+};
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '100mb' })); 
 app.use(express.urlencoded({ limit: '100mb', extended: true, parameterLimit: 100000 }));
 app.use('/uploads', express.static('uploads'));
@@ -22,8 +38,13 @@ app.use('/uploads', express.static('uploads'));
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", 
-    methods: ["GET", "POST"]
+    origin: [
+      'https://hrmgpsattendance.web.app',
+      'http://localhost:3000',
+      'http://localhost:5173',
+    ],
+    methods: ['GET', 'POST'],
+    credentials: true,
   }
 });
 
