@@ -3,11 +3,13 @@ import axiosClient from '../../../api/axiosClient';
 import { useNavigate } from 'react-router-dom';
 
 const ChangesStats = () => {
-
   const navigate = useNavigate(); // ✅ FIX 1: đưa lên đây
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7) // yyyy-MM
   );
+  const [filterType, setFilterType] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   const formatMonth = (monthStr) => {
     const [year, month] = monthStr.split('-');
     return `Tháng ${month}/${year}`;
@@ -34,9 +36,14 @@ const ChangesStats = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const summaryData = await axiosClient.get(`/manager/stats/changes-summary?month=${selectedMonth}`);
-        const listData = await axiosClient.get(`/manager/stats/changes-list?month=${selectedMonth}`);
-        const tenureData = await axiosClient.get(`/manager/stats/tenure?month=${selectedMonth}`);
+        const prevMonth = getPrevMonth(selectedMonth);
+  
+        const [summaryData, listData, tenureData, prevSummary] = await Promise.all([
+          axiosClient.get(`/manager/stats/changes-summary?month=${selectedMonth}`),
+          axiosClient.get(`/manager/stats/changes-list?month=${selectedMonth}`),
+          axiosClient.get(`/manager/stats/tenure?month=${selectedMonth}`),
+          axiosClient.get(`/manager/stats/changes-summary?month=${prevMonth}`) // 👈 thêm
+        ]);
   
         const total = Number(summaryData.total);
         const join = Number(summaryData.new_employees);
@@ -48,14 +55,35 @@ const ChangesStats = () => {
   
         setStats({ total, join, leave, turnoverRate, list: listData });
         setTenure(tenureData);
+        setPrevStats(prevSummary); // 👈 lưu tháng trước
+  
       } catch (err) {
         console.error('Lỗi load thống kê:', err);
       }
     };
   
     fetchData();
-  }, [selectedMonth]); // 👈 thêm dependency
-
+  }, [selectedMonth]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filterType, selectedMonth]);
+   // 👈 thêm dependency
+   const filteredList = stats.list.filter(item => {
+    if (filterType === 'all') return true;
+    return item.type === filterType;
+  });
+  
+  const totalPages = Math.ceil(filteredList.length / itemsPerPage);
+  
+  const paginatedList = filteredList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  
+  const getDiff = (current, prev) => {
+    if (prev === undefined || prev === null) return null;
+    return current - Number(prev);
+  };
   return (
     <div style={container}>
 
@@ -65,18 +93,43 @@ const ChangesStats = () => {
           <h2 style={title}>Thống kê Biến động Nhân sự</h2>
           <p style={subtitle}>Theo dõi tình hình tuyển dụng, nghỉ việc và cơ cấu nhân sự</p>
         </div>
-        <div style={dateBox}>
-  <input
-    type="month"
-    value={selectedMonth}
-    onChange={(e) => setSelectedMonth(e.target.value)}
-    style={{
-      border: 'none',
-      outline: 'none',
-      fontSize: 13,
-      background: 'transparent'
-    }}
-  />
+        <div style={{ display: 'flex', gap: 10 }}>
+
+  {/* CHỌN THÁNG */}
+  <div style={dateBox}>
+    <input
+      type="month"
+      value={selectedMonth}
+      onChange={(e) => setSelectedMonth(e.target.value)}
+      style={{
+        border: 'none',
+        outline: 'none',
+        fontSize: 13,
+        background: 'transparent'
+      }}
+    />
+  </div>
+
+  {/* FILTER */}
+  <div style={dateBox}>
+    <select
+      value={filterType}
+      onChange={(e) => setFilterType(e.target.value)}
+      style={{
+        border: 'none',
+        outline: 'none',
+        fontSize: 13,
+        background: 'transparent',
+        cursor: 'pointer'
+      }}
+    >
+      <option value="all">Tất cả</option>
+      <option value="Gia nhập">Gia nhập</option>
+      <option value="Nghỉ việc">Nghỉ việc</option>
+      <option value="Nghỉ phép">Nghỉ phép</option>
+    </select>
+  </div>
+
 </div>
       </div>
 
@@ -88,6 +141,13 @@ const ChangesStats = () => {
           <h2 style={cardValueWhite}>{stats.total}</h2>
           <span style={cardSub}>
   {formatMonth(selectedMonth)}
+  {prevStats && (
+    <>
+      {' • '}
+      {getDiff(stats.total, prevStats?.total) >= 0 ? '+' : ''}
+      {getDiff(stats.total, prevStats?.total)} so với tháng trước
+    </>
+  )}
 </span>
         </div>
 
@@ -130,7 +190,7 @@ const ChangesStats = () => {
           </thead>
 
           <tbody>
-            {stats.list.map((item, index) => (
+          {paginatedList.map((item, index) => (
               <Row
                 key={index}
                 id={item.employee_id} // ⚠️ đảm bảo API có field này
@@ -144,9 +204,32 @@ const ChangesStats = () => {
           </tbody>
         </table>
       </div>
+      <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 8 }}>
+  
+  <button
+    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+    disabled={currentPage === 1}
+    style={pageBtn}
+  >
+    ←
+  </button>
 
+  <span style={{ fontSize: 13 }}>
+    Trang {currentPage} / {totalPages || 1}
+  </span>
+
+  <button
+    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+    disabled={currentPage === totalPages}
+    style={pageBtn}
+  >
+    →
+  </button>
+
+</div>
     </div>
   );
+
 };
 
 export default ChangesStats;
@@ -194,9 +277,7 @@ const Row = ({ id, name, dept, type, date, onView }) => {
     <tr style={row}>
       <td>
         <div style={{ fontWeight: 600 }}>{name}</div>
-        <div style={{ fontSize: 12, color: '#94a3b8' }}>
-          ID: {id || '---'}
-        </div>
+        
       </td>
 
       <td>
@@ -405,8 +486,10 @@ const viewBtn = {
   fontSize: 12,
   cursor: 'pointer'
 };
-<tr
-  style={row}
-  onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
-  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-></tr>
+const pageBtn = {
+  padding: '4px 10px',
+  borderRadius: 6,
+  border: '1px solid #e2e8f0',
+  background: '#fff',
+  cursor: 'pointer'
+};

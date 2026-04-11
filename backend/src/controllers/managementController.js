@@ -468,18 +468,22 @@ const getChangesSummary = async (req, res) => {
 
     const query = `
       SELECT
-        (SELECT COUNT(*) FROM employee WHERE status = 'active') AS total,
+  (SELECT COUNT(*) 
+   FROM employee 
+   WHERE join_date <= TO_DATE(:month, 'YYYY-MM')
+     AND (status = 'active' OR TO_CHAR(updated_at, 'YYYY-MM') > :month)
+  ) AS total,
 
-        (SELECT COUNT(*) 
-         FROM employee 
-         WHERE TO_CHAR(join_date, 'YYYY-MM') = :month
-        ) AS new_employees,
+  (SELECT COUNT(*) 
+   FROM employee 
+   WHERE TO_CHAR(join_date, 'YYYY-MM') = :month
+  ) AS new_employees,
 
-        (SELECT COUNT(*) 
-         FROM employee 
-         WHERE status = 'inactive'
-         AND TO_CHAR(updated_at, 'YYYY-MM') = :month
-        ) AS leave_employees
+  (SELECT COUNT(*) 
+   FROM employee 
+   WHERE status = 'inactive'
+     AND TO_CHAR(updated_at, 'YYYY-MM') = :month
+  ) AS leave_employees
     `;
 
     const result = await db.query(query, {
