@@ -8,10 +8,11 @@ import { FiClock } from "react-icons/fi";
 import { PiClockCounterClockwise } from "react-icons/pi";
 import { MdCalendarMonth } from "react-icons/md";
 import { CiSearch } from "react-icons/ci";
-import { GoCheckCircle } from "react-icons/go";
+import { GoCheckCircle,GoBlocked  } from "react-icons/go";
 import { LuClock2 } from "react-icons/lu";
 import { IoArrowBack } from "react-icons/io5";
 import { employeeService } from "../../services/employeeService";
+
 
 import "./Requests.css";
 
@@ -604,7 +605,9 @@ const handleCancelConfirm = () => {
                         <span className={`status-pill ${r.status}`}>
                           <span className="dot">● </span>
                           {r.status === 'approved' ? 'Đã duyệt' : 
-                          r.status === 'pending' ? 'Chờ duyệt' : 'Từ chối'}
+                          r.status === 'pending' ? 'Chờ duyệt' : 
+                          r.status === 'rejected' ? 'Từ chối': 'không xác định'
+                          }
                         </span>
                       </td>
                     </tr>
@@ -794,7 +797,10 @@ const handleCancelConfirm = () => {
                 <div className="recent-item" key={r.id}>
                   {/* Phần icon bên trái */}
                   <div className={`recent-icon-wrapper ${r.status}`}>
-                    {r.status === "approved" ? <GoCheckCircle /> : <LuClock2 />}
+                    {r.status === "approved" ? <GoCheckCircle /> :
+                    r.status === "pending" ? <LuClock2 /> :
+                    r.status === "rejected" ? <GoBlocked /> :
+                    null}
                   </div>
 
                   {/* Phần nội dung giữa */}
@@ -811,8 +817,8 @@ const handleCancelConfirm = () => {
                       {r.status === "approved"
                         ? "ĐÃ DUYỆT"
                         : r.status === "pending"
-                        ? "CHỜ DUYỆT"
-                        : "TỪ CHỐI"}
+                        ? "CHỜ DUYỆT" :
+                        r.status === 'rejected' ? 'TỪ CHỐI' :''}
                     </span>
                   </div>
                 </div>

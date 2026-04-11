@@ -7,9 +7,11 @@ import { PiClockCounterClockwise } from "react-icons/pi";
 import { FaUser, FaRegFileAlt, FaRegClock } from "react-icons/fa";
 import { employeeService } from "../../services/employeeService";
 import { IoArrowBack } from "react-icons/io5";
+import { GoCheckCircle } from "react-icons/go";
 import { MdCalendarMonth } from "react-icons/md";
 import { CiSearch } from "react-icons/ci";
 import { LuClock2 } from "react-icons/lu";
+import { GoBlocked } from "react-icons/go";
 import './OvertimeRequest.css'
 const OvertimeRequest = () => {
   const [form, setForm] = useState({
@@ -693,7 +695,10 @@ useEffect(() => {
         <div className="recent-item" key={r.id}>
           
           <div className={`recent-icon-wrapper ${r.status}`}>
-            {r.status === "approved" ? <GoCheckCircle /> : <LuClock2 />}
+            {r.status === "approved" ? <GoCheckCircle /> :
+             r.status === "pending" ? <LuClock2 /> :
+             r.status === "rejected" ? <GoBlocked /> :
+             null}
           </div>
         
           <div className="recent-info">          

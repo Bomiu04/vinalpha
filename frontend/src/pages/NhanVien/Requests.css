@@ -650,6 +650,10 @@
   background-color: #e6f7ef; /* Xanh lá nhạt */
   color: #00b050; /* Xanh lá */
 }
+.recent-icon-wrapper.rejected {
+  background-color: #ffe6e6; /* Đỏ nhạt */
+  color: #e60000; /* Đỏ */
+}
 
 /* Nội dung text */
 .recent-info {
