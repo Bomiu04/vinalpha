@@ -23,7 +23,7 @@ const getAllUsers = async (req, res) => {
 };
 
 // ==========================================
-// 2. TẠO TÀI KHOẢN (ĐÃ FIX TOÀN BỘ LỖI)
+// 2. TẠO TÀI KHOẢN 
 // ==========================================
 const createUser = async (req, res) => {
   const { 
@@ -31,6 +31,18 @@ const createUser = async (req, res) => {
     fullName, email, positionId, 
     username, password, role, status, sendEmail 
   } = req.body; 
+
+  // --- 🛑 CHỐT CHẶN ROLE: Chỉ cho phép 4 quyền ---
+  const validRoles = ['EMPLOYEE', 'MANAGER', 'DIRECTOR', 'ADMIN'];
+  const finalRole = role ? role.toUpperCase() : 'EMPLOYEE'; // Mặc định là EMPLOYEE
+
+  if (!validRoles.includes(finalRole)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Quyền không hợp lệ! Chỉ chấp nhận: EMPLOYEE, MANAGER, DIRECTOR, ADMIN" 
+    });
+  }
+  // ------------------------------------------------
 
   const t = await db.transaction();
 
@@ -65,7 +77,8 @@ const createUser = async (req, res) => {
     `;
     const [userResult] = await db.query(insertUserQuery, {
       replacements: { 
-        finalEmployeeId, username, password, role, 
+        finalEmployeeId, username, password, 
+        role: finalRole, // 👉 Dùng finalRole đã được viết hoa và kiểm tra
         status: status ? status.toLowerCase() : 'active' 
       },
       transaction: t
@@ -113,8 +126,9 @@ const createUser = async (req, res) => {
     });
   }
 };
+
 // ==========================================
-// 3. CẬP NHẬT TÀI KHOẢN
+// 3. CẬP NHẬT TÀI KHOẢN (CHUẨN HÓA ROLE)
 // ==========================================
 const updateUser = async (req, res) => {
   const { id } = req.params; 
@@ -124,8 +138,16 @@ const updateUser = async (req, res) => {
     let replacements = { id };
 
     if (role) {
+      // --- 🛑 CHỐT CHẶN ROLE KHI CẬP NHẬT ---
+      const validRoles = ['EMPLOYEE', 'MANAGER', 'DIRECTOR', 'ADMIN'];
+      const finalRole = role.toUpperCase();
+      
+      if (!validRoles.includes(finalRole)) {
+        return res.status(400).json({ success: false, message: "Quyền không hợp lệ!" });
+      }
+
       updateFields.push('role_code = :role');
-      replacements.role = role;
+      replacements.role = finalRole;
     }
     if (status) {
       updateFields.push('status = :status');
@@ -144,6 +166,9 @@ const updateUser = async (req, res) => {
   }
 };
 
+// ==========================================
+// 4. CÁC HÀM KHÁC
+// ==========================================
 const getEmployeesWithoutAccount = async (req, res) => {
   try {
     const query = `
@@ -151,7 +176,7 @@ const getEmployeesWithoutAccount = async (req, res) => {
         e.id, 
         e.employee_code, 
         e.full_name,
-        p.position_name -- Nếu bạn có bảng chức vụ (position), lấy thêm tên chức vụ cho đẹp
+        p.position_name
       FROM employee e
       LEFT JOIN user_account ua ON e.id = ua.employee_id
       LEFT JOIN position p ON e.position_id = p.id
@@ -168,6 +193,7 @@ const getEmployeesWithoutAccount = async (req, res) => {
     res.status(500).json({ success: false, message: "Lỗi máy chủ" });
   }
 };
+
 const adminForceResetPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -177,7 +203,6 @@ const adminForceResetPassword = async (req, res) => {
 
     const temporaryPassword = 'Welcome@' + Math.floor(1000 + Math.random() * 9000);
 
-    // 1. Cập nhật Pass mới và Bật cờ bắt buộc đổi mật khẩu (khớp personal_email hoặc work_email — đồng bộ với danh sách user admin)
     const updateQuery = `
       UPDATE user_account 
       SET password_hash = crypt(:pass, gen_salt('bf')),
@@ -200,7 +225,6 @@ const adminForceResetPassword = async (req, res) => {
       });
     }
 
-    // 2. Lấy thông tin để gửi mail
     const users = await db.query(
       `SELECT full_name, username FROM employee e 
        JOIN user_account ua ON e.id = ua.employee_id 
@@ -214,7 +238,6 @@ const adminForceResetPassword = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Lỗi lấy thông tin người dùng sau khi cập nhật.' });
     }
 
-    // 3. Gửi email cấp mật khẩu tạm thời
     await sendAccountEmail(email, user.full_name, user.username, temporaryPassword);
 
     res.status(200).json({ success: true, message: 'Đã reset và bật cờ đổi mật khẩu thành công!' });
@@ -225,6 +248,10 @@ const adminForceResetPassword = async (req, res) => {
   }
 };
 
-// module.exports = { getAllUsers, createUser, updateUser, getEmployeesWithoutAccount };
-
-module.exports = { getAllUsers, createUser, updateUser, getEmployeesWithoutAccount ,adminForceResetPassword};
+module.exports = { 
+  getAllUsers, 
+  createUser, 
+  updateUser, 
+  getEmployeesWithoutAccount, 
+  adminForceResetPassword
+};

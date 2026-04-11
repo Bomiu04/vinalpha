@@ -211,7 +211,7 @@ const calculateTotalDays = (start, end) => {
 
   employeeService
     .getLeaveRequests(user.id)
-.then((res) => {
+    .then((res) => {
       console.log("DATA:", res);
       setRequests(res?.data || res || []);
     })

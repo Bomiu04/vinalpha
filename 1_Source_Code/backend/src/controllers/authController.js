@@ -222,7 +222,7 @@ const resetPassword = async (req, res) => {
         return res.status(400).json({
           success: false,
           message:
-            'Mật kh��u mới không được trùng với mật kh��u c��!',
+            'Mật khẩu mới không được trùng với mật khẩu cũ!',
         });
       }
     }
