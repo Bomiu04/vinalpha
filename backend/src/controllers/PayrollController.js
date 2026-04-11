@@ -112,6 +112,7 @@ const resolveStatusAfterEdit = (checkInDt, checkOutDt) => {
 };
 
 const calculatePayroll = async (req, res) => {
+    console.log("🚀🚀🚀 CHÚ Ý: ĐÃ VÀO HÀM TÍNH LƯƠNG!!! Tháng:", req.query.monthYear);
     const { monthYear, departmentId } = req.query;
     let tx;
 

@@ -206,6 +206,7 @@ const Users = () => {
             <option value="INACTIVE">Đã khóa</option>
         </select>
 
+        {/* SỬA THÀNH NHƯ SAU: */}
         <select 
             value={roleFilter} 
             onChange={(e) => { setRoleFilter(e.target.value); setCurrentPage(1); }}
@@ -214,7 +215,7 @@ const Users = () => {
             <option value="ALL">Tất cả vai trò</option>
             <option value="ADMIN">Quản trị viên (Admin)</option>
             <option value="MANAGER">Quản lý (Manager)</option>
-            <option value="USER">Nhân viên (User)</option>
+            <option value="EMPLOYEE">Nhân viên (Employee)</option>
         </select>
 
         <button onClick={handleResetFilters} style={{ height: '40px', padding: '0 16px', backgroundColor: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '500' }}>
@@ -262,9 +263,23 @@ const Users = () => {
                         </td>
                         <td style={{ padding: '12px 20px', color: '#374151', fontSize: '14px', fontWeight: '500' }}>{user.username}</td>
                         <td style={{ padding: '12px 20px' }}>
-                        <span style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: '500', 
-                            backgroundColor: user.role === 'ADMIN' ? '#fee2e2' : user.role === 'MANAGER' ? '#dbeafe' : '#f3f4f6',
-                            color: user.role === 'ADMIN' ? '#b91c1c' : user.role === 'MANAGER' ? '#1d4ed8' : '#374151'
+                            <span style={{ 
+                                padding: '4px 8px', 
+                                borderRadius: '4px', 
+                                fontSize: '12px', 
+                                fontWeight: '500', 
+                                backgroundColor: 
+                                user.role === 'ADMIN' ? '#fee2e2' : 
+                                user.role === 'DIRECTOR' ? '#f3e8ff' : 
+                                user.role === 'MANAGER' ? '#dbeafe' : 
+                                user.role === 'EMPLOYEE' ? '#d1fae5' : 
+                                '#f3f4f6', // Màu mặc định (Xám)
+                            color: 
+                                user.role === 'ADMIN' ? '#b91c1c' : 
+                                user.role === 'DIRECTOR' ? '#7e22ce' : 
+                                user.role === 'MANAGER' ? '#1d4ed8' : 
+                                user.role === 'EMPLOYEE' ? '#047857' : 
+                                '#374151'  // Màu mặc định (Xám)
                         }}>
                             {user.role}
                         </span>

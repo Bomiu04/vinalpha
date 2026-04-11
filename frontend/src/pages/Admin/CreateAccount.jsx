@@ -13,8 +13,8 @@ const CreateAccount = ({ onBack }) => {
     positionId: '',
     username: '',
     password: '',
-    role: 'USER',
-    status: 'ACTIVE',
+    role: 'EMPLOYEE',
+status: 'active',
     sendEmail: true
   });
 
@@ -234,7 +234,7 @@ const CreateAccount = ({ onBack }) => {
                 value={formData.role}
                 onChange={(e) => setFormData({...formData, role: e.target.value})}
               >
-                <option value="USER">User (Nhân viên bình thường)</option>
+                <option value="EMPLOYEE">User (Nhân viên bình thường)</option>
                 <option value="MANAGER">Manager (Quản lý)</option>
                 <option value="DIRECTOR">Director (Giám đốc)</option>
                 <option value="ADMIN">System Admin</option>
@@ -242,15 +242,16 @@ const CreateAccount = ({ onBack }) => {
             </div>
             <div className="ca-form-group">
               <label>Trạng thái tài khoản</label>
-              <select 
-                className="ca-input-select" 
-                style={{ color: '#10b981', fontWeight: '500' }}
-                value={formData.status}
-                onChange={(e) => setFormData({...formData, status: e.target.value})}
-              >
-                <option value="ACTIVE">Đang hoạt động (Active)</option>
-                <option value="INACTIVE">Khóa tạm thời</option>
-              </select>
+              {/* SỬA THÀNH NHƯ SAU ĐỂ KHỚP VỚI DATABASE ENUM */}
+                <select 
+                  className="ca-input-select" 
+                  style={{ color: formData.status === 'active' ? '#10b981' : '#ef4444', fontWeight: '500' }}
+                  value={formData.status}
+                  onChange={(e) => setFormData({...formData, status: e.target.value})}
+                >
+                  <option value="active">Đang hoạt động (Active)</option>
+                  <option value="locked">Khóa (Locked)</option>
+                </select>
             </div>
           </div>
 
