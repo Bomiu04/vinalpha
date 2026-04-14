@@ -1,52 +1,71 @@
-import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
-import { Stack } from "expo-router";
-import { useEffect } from "react";
+import { Tabs } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-
-// 1. Cấu hình Handler: Cho phép thông báo hiển thị khi app ĐANG MỞ
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+import { MaterialIcons, Feather } from "@expo/vector-icons";
 
 export default function RootLayout() {
-  // 2. Chạy logic lấy Token 1 lần khi app khởi động
-  useEffect(() => {
-    async function getPushToken() {
-      try {
-        // Xin quyền từ người dùng (nếu chưa có)
-        const { status } = await Notifications.requestPermissionsAsync();
-        if (status !== "granted") {
-          console.log("❌ Người dùng từ chối cấp quyền thông báo!");
-          return;
-        }
-
-        // Lấy Token của điện thoại hiện tại
-        const tokenData = await Notifications.getExpoPushTokenAsync({
-          // projectId lấy tự động từ app.json (nếu có cấu hình EAS)
-          projectId: Constants.expoConfig?.extra?.eas?.projectId,
-        });
-
-        console.log("🔥 PUSH TOKEN CỦA BẠN LÀ:", tokenData.data);
-      } catch (error) {
-        console.log("❌ Lỗi lấy token:", error);
-      }
-    }
-
-    getPushToken();
-  }, []);
-
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-      </Stack>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarStyle: {
+            backgroundColor: "#fff",
+            borderTopWidth: 0,
+            elevation: 12,
+            shadowColor: "#000",
+            shadowOpacity: 0.08,
+            shadowRadius: 12,
+            height: 70,
+            paddingBottom: 10,
+            paddingTop: 6,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+          },
+          tabBarActiveTintColor: "#00b4d8",
+          tabBarInactiveTintColor: "#94a3b8",
+          tabBarLabelStyle: {
+            fontSize: 11,
+            fontWeight: "700",
+          },
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Chấm công",
+            tabBarIcon: ({ color, size, focused }) =>
+              focused ? (
+                <MaterialIcons name="fingerprint" size={size + 2} color={color} />
+              ) : (
+                <MaterialIcons name="fingerprint" size={size} color={color} />
+              ),
+          }}
+        />
+        <Tabs.Screen
+          name="requests"
+          options={{
+            title: "Đơn từ",
+            tabBarIcon: ({ color, size, focused }) =>
+              focused ? (
+                <Feather name="file-text" size={size + 2} color={color} />
+              ) : (
+                <Feather name="file-text" size={size} color={color} />
+              ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Hồ sơ",
+            tabBarIcon: ({ color, size, focused }) =>
+              focused ? (
+                <Feather name="user" size={size + 2} color={color} />
+              ) : (
+                <Feather name="user" size={size} color={color} />
+              ),
+          }}
+        />
+      </Tabs>
     </SafeAreaProvider>
   );
 }

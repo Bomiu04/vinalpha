@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, Animated, Dimensions, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, Animated, Dimensions, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { LocationMap } from '@/components/LocationMap';
+import { BellButton } from '@/components/BellButton';
+import { AttendanceHistoryModal } from '@/components/AttendanceHistoryModal';
 
 const { width } = Dimensions.get('window');
 
@@ -12,6 +14,7 @@ const UI_MAP_INSIDE_M = 100;
 export const AttendanceUI = ({ props }: { props: any }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [isMapVisible, setIsMapVisible] = useState(false);
+  const [isHistoryVisible, setIsHistoryVisible] = useState(false);
 
   const isValidTimeValue = (value: any) => {
     if (value === undefined || value === null) return false;
@@ -70,6 +73,24 @@ export const AttendanceUI = ({ props }: { props: any }) => {
           <Text style={styles.loginTitle}>HRM Chấm Công</Text>
           <TextInput style={styles.input} placeholder="Tên đăng nhập" value={props.username} onChangeText={props.setUsername} autoCapitalize="none" />
           <TextInput style={styles.input} placeholder="Mật khẩu" value={props.password} onChangeText={props.setPassword} secureTextEntry />
+          
+          <View style={styles.rememberRow}>
+            <TouchableOpacity 
+              style={styles.rememberBtn} 
+              onPress={() => props.setRememberMe(!props.rememberMe)}
+              activeOpacity={0.7}
+            >
+              <Feather 
+                name={props.rememberMe ? "check-square" : "square"} 
+                size={20} 
+                color={props.rememberMe ? "#00b4d8" : "#94a3b8"} 
+              />
+              <Text style={[styles.rememberText, props.rememberMe && { color: '#00b4d8' }]}>
+                Ghi nhớ đăng nhập
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity style={styles.loginBtn} onPress={props.handleLogin} disabled={props.loading}>
             {props.loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginBtnText}>ĐĂNG NHẬP</Text>}
           </TouchableOpacity>
@@ -145,7 +166,15 @@ export const AttendanceUI = ({ props }: { props: any }) => {
             <Text style={styles.userName}>{props.userName}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.bellBtn} onPress={props.handleLogout}><Feather name="log-out" size={20} color="#64748b" /></TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.bellBtn} onPress={() => setIsHistoryVisible(true)}>
+            <Feather name="clock" size={20} color="#64748b" />
+          </TouchableOpacity>
+          <BellButton />
+          <TouchableOpacity style={styles.bellBtn} onPress={props.handleLogout}>
+            <Feather name="log-out" size={20} color="#64748b" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.mainContent}>
@@ -203,7 +232,16 @@ export const AttendanceUI = ({ props }: { props: any }) => {
             ) : (
               <TouchableOpacity
                 style={[styles.punchBtn, { backgroundColor: btnCfg.color }]}
-                onPress={() => props.handleAction(btnCfg.action)}
+                onPress={() => {
+                  if (btnCfg.action === 'checkout') {
+                    Alert.alert('Xác nhận', 'Bạn có chắc chắn muốn tan ca không?', [
+                      { text: 'Huỷ', style: 'cancel' },
+                      { text: 'Đồng ý', onPress: () => props.handleAction('checkout') }
+                    ]);
+                  } else {
+                    props.handleAction(btnCfg.action);
+                  }
+                }}
                 disabled={props.loading || hasOut || punchLockedByGps}
               >
                 {props.loading ? (
@@ -271,6 +309,11 @@ export const AttendanceUI = ({ props }: { props: any }) => {
         </View>
       </View>
 
+      <AttendanceHistoryModal
+        visible={isHistoryVisible}
+        onClose={() => setIsHistoryVisible(false)}
+      />
+
       <Modal
         visible={isMapVisible}
         animationType="slide"
@@ -332,14 +375,7 @@ export const AttendanceUI = ({ props }: { props: any }) => {
         </View>
       </Modal>
 
-      <View style={styles.bottomNav}>
-        <View style={styles.navItem}><Feather name="home" size={24} color="#94a3b8" /><Text style={styles.navText}>Trang chủ</Text></View>
-        <View style={styles.navItemActive}>
-          <View style={styles.activeIndicator} /><MaterialIcons name="fingerprint" size={28} color="#00b4d8" /><Text style={styles.navTextActive}>Chấm công</Text>
-        </View>
-        <View style={styles.navItem}><Feather name="file-text" size={24} color="#94a3b8" /><Text style={styles.navText}>Đơn từ</Text></View>
-        <View style={styles.navItem}><Feather name="user" size={24} color="#94a3b8" /><Text style={styles.navText}>Hồ sơ</Text></View>
-      </View>
+
     </SafeAreaView>
   );
 };
@@ -350,11 +386,17 @@ const styles = StyleSheet.create({
   loginContainer: { flex: 1, backgroundColor: '#e2e8f0', justifyContent: 'center', padding: 20 },
   loginCard: { backgroundColor: '#fff', padding: 30, borderRadius: 30, elevation: 10 },
   iconWrapper: { alignItems: 'center', marginBottom: 15 },
-  loginTitle: { fontSize: 26, fontWeight: '900', textAlign: 'center', color: '#0f172a' },
-  input: { backgroundColor: '#f1f5f9', padding: 18, borderRadius: 15, marginBottom: 15, fontSize: 16 },
+  loginTitle: { fontSize: 26, fontWeight: '900', textAlign: 'center', color: '#0f172a', marginBottom: 20 },
+  input: { backgroundColor: '#f8fafc', padding: 15, borderRadius: 12, marginBottom: 15, borderWidth: 1, borderColor: '#e2e8f0' },
+  
+  rememberRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, marginTop: -5 },
+  rememberBtn: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rememberText: { fontSize: 14, color: '#64748b', fontWeight: '600' },
+
   loginBtn: { backgroundColor: '#00b4d8', padding: 18, borderRadius: 15, alignItems: 'center' },
   loginBtnText: { color: '#fff', fontWeight: 'bold' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, paddingTop: 40, zIndex: 10 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   userInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatar: { width: 45, height: 45, borderRadius: 25, borderWidth: 2, borderColor: '#fff' },
   onlineDot: { position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, backgroundColor: '#10b981', borderRadius: 6, borderWidth: 2, borderColor: '#fff' },
@@ -404,12 +446,6 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 16, fontWeight: '900', color: '#94a3b8' },
   statLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '800', marginBottom: 4 },
   divider: { width: 1, height: 40, backgroundColor: '#f1f5f9' },
-  bottomNav: { flexDirection: 'row', backgroundColor: '#fff', paddingVertical: 15, borderTopLeftRadius: 30, borderTopRightRadius: 30, elevation: 10, justifyContent: 'space-around' },
-  navItem: { alignItems: 'center', width: 70 },
-  navText: { fontSize: 10, color: '#94a3b8', marginTop: 6 },
-  navItemActive: { alignItems: 'center', width: 70 },
-  navTextActive: { fontSize: 10, color: '#00b4d8', fontWeight: 'bold' },
-  activeIndicator: { position: 'absolute', top: -15, width: 40, height: 4, backgroundColor: '#00b4d8' },
   mapBottomSheetRoot: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -487,4 +523,12 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   zoneAlertText: { flex: 1, color: '#fff', fontSize: 13, fontWeight: '700' },
-});
+  historyBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    marginHorizontal: 20, marginTop: 12, marginBottom: 6,
+    paddingVertical: 14, paddingHorizontal: 20,
+    backgroundColor: '#e0f7fa', borderRadius: 16,
+    borderWidth: 1, borderColor: '#b2ebf2',
+  },
+  historyBtnText: { fontSize: 14, fontWeight: '800', color: '#00b4d8', flex: 1, textAlign: 'center' },
+});

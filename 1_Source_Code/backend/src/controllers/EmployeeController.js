@@ -485,7 +485,7 @@ exports.createRequest = async (req, res) => {
       return res.status(400).json({ message: 'Thiếu dữ liệu' });
     }
 
-    const validTypes = ['annual', 'sick', 'unpaid', 'maternity', 'bereavement'];
+    const validTypes = ['annual', 'sick', 'unpaid', 'maternity', 'bereavement', 'attendance_error', 'late_excuse'];
     if (!validTypes.includes(leave_type)) {
       return res.status(400).json({ message: 'Loại nghỉ không hợp lệ' });
     }
