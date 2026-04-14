@@ -302,6 +302,29 @@ const changePasswordFirstLogin = async (req, res) => {
   }
 };
 
+const savePushToken = async (req, res) => {
+  const { employeeId, expoPushToken } = req.body;
+  try {
+    if (!employeeId || !expoPushToken) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin push token' });
+    }
+
+    const updateQuery = `
+      UPDATE user_account 
+      SET expo_push_token = :expoPushToken
+      WHERE employee_id = :employeeId
+    `;
+    await db.query(updateQuery, {
+      replacements: { expoPushToken, employeeId }
+    });
+
+    res.status(200).json({ success: true, message: "Lưu push token thành công!" });
+  } catch (error) {
+    console.error("Lỗi lưu push token:", error);
+    res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
+  }
+};
+
 // ==========================================
 // EXPORTS CÁC HÀM RA CHO ROUTER SỬ DỤNG
 // ==========================================
@@ -310,5 +333,6 @@ module.exports = {
   changePasswordFirstLogin,
   forgotPassword,
   verifyOTP,
-  resetPassword
+  resetPassword,
+  savePushToken
 };

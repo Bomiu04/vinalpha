@@ -1,5 +1,6 @@
 const sequelize = require('../config/database');
 const { QueryTypes } = require('sequelize');
+const axios = require('axios');
 
 /** Đồng bộ với .data: mặc định UI là 'Toàn công ty'; DB cũ có thể còn 'Tất cả nhân viên'. */
 function isCompanyWideTarget(target) {
@@ -113,6 +114,39 @@ const notificationController = {
       }
 
       await t.commit();
+
+      // === FIRE PUSH NOTIFICATION (BACKGROUND) ===
+      if (finalStatus !== 'Nháp') {
+        const fetchTokensQuery = `
+          SELECT u.expo_push_token 
+          FROM user_account u
+          JOIN notification_recipient nr ON nr.employee_id = u.employee_id
+          WHERE nr.notification_id = :notiId AND u.expo_push_token IS NOT NULL
+        `;
+        const tokens = await sequelize.query(fetchTokensQuery, {
+          replacements: { notiId: notificationId },
+          type: QueryTypes.SELECT
+        });
+
+        if (tokens && tokens.length > 0) {
+          const pushMessages = tokens.map(t => ({
+            to: t.expo_push_token,
+            title: title || 'Thông báo mới',
+            body: desc || 'Bạn có một thông báo mới từ công ty.',
+            sound: 'default'
+          }));
+
+          axios.post('https://exp.host/--/api/v2/push/send', pushMessages, {
+            headers: {
+              'Accept': 'application/json',
+              'Accept-encoding': 'gzip, deflate',
+              'Content-Type': 'application/json',
+            }
+          }).then(res => console.log('Expo Push Sent:', res.data))
+            .catch(err => console.error('Expo Push Error:', err?.response?.data || err.message));
+        }
+      }
+
       res.status(201).json({ message: 'Gửi thông báo thành công', id: notificationId });
     } catch (err) {
       await t.rollback();
