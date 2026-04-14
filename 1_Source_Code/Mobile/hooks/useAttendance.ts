@@ -4,6 +4,7 @@ import { getGeofenceSocket } from "@/services/geofenceSocket";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import * as Location from "expo-location";
+import { registerForPushNotificationsAsync } from "@/services/NotificationService";
 import * as Notifications from "expo-notifications";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert } from "react-native";
@@ -36,6 +37,7 @@ export const useAttendance = () => {
   const [userToken, setUserToken] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [location, setLocation] =
     useState<Location.LocationObjectCoords | null>(null);
@@ -514,12 +516,31 @@ export const useAttendance = () => {
       const token = await AsyncStorage.getItem("userToken");
       const empId = await AsyncStorage.getItem("employeeId");
       const name = await AsyncStorage.getItem("userName");
+      
+      const savedUser = await AsyncStorage.getItem("saved_username");
+      const savedPass = await AsyncStorage.getItem("saved_password");
+      if (savedUser && savedPass) {
+        setUsername(savedUser);
+        setPassword(savedPass);
+        setRememberMe(true);
+      }
+      
       if (token && empId) {
         setUserToken(token);
         setEmployeeId(empId);
         setUserName(name || "Nhân viên");
         void fetchCurrentLocation();
         void fetchSummary(empId);
+
+        // Sync Push Token when returning to app
+        void registerForPushNotificationsAsync().then((pushToken) => {
+          if (pushToken) {
+            axios.post(`${API_URL}/auth/push-token`, {
+              employeeId: empId,
+              expoPushToken: pushToken
+            }).catch(e => console.log('Lỗi sync token:', e.message));
+          }
+        });
       }
     };
     checkStatus();
@@ -550,16 +571,36 @@ export const useAttendance = () => {
       }
       const { token, user } = res.data;
       const idStr = String(user.id);
-      await AsyncStorage.multiSet([
+      
+      const multiSetArgs: [string, string][] = [
         ["userToken", token],
         ["employeeId", idStr],
         ["userName", user.name],
-      ]);
+      ];
+      
+      if (rememberMe) {
+        multiSetArgs.push(["saved_username", username]);
+        multiSetArgs.push(["saved_password", password]);
+      } else {
+        await AsyncStorage.multiRemove(["saved_username", "saved_password"]);
+      }
+      
+      await AsyncStorage.multiSet(multiSetArgs);
       setUserToken(token);
       setEmployeeId(idStr);
       setUserName(user.name);
       await fetchSummary(idStr);
       fetchCurrentLocation();
+
+      // Sync Push Token on new login
+      void registerForPushNotificationsAsync().then((pushToken) => {
+        if (pushToken) {
+          axios.post(`${API_URL}/auth/push-token`, {
+            employeeId: idStr,
+            expoPushToken: pushToken
+          }).catch(e => console.log('Lỗi sync token:', e.message));
+        }
+      });
     } catch (error: any) {
       console.log(
         "❌ [FRONTEND] Lỗi đăng nhập:",
@@ -635,6 +676,9 @@ export const useAttendance = () => {
     handleLogin,
     handleAction,
     handleLogout,
+    syncAttendanceFromServer,
+    rememberMe,
+    setRememberMe,
     geofenceSocketStatus,
     geofenceLeaveWarning,
     geofenceLeaveCountdownSec,

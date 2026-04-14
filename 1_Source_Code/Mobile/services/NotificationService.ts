@@ -47,6 +47,26 @@ export const requestNotificationPermissionsAsync = async (): Promise<boolean> =>
 };
 
 /**
+ * Lấy Expo Push Token để gửi về Server
+ */
+export const registerForPushNotificationsAsync = async (): Promise<string | undefined> => {
+  const hasPermission = await requestNotificationPermissionsAsync();
+  if (!hasPermission) return undefined;
+
+  try {
+    const projectId = "e05ac92d-033e-42c3-9756-64113e5346d9"; // Được cấp trong nền tảng Expo
+    const pushTokenData = await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
+    console.log("Expo Push Token:", pushTokenData.data);
+    return pushTokenData.data;
+  } catch (error) {
+    console.error("Lỗi cấp Token thiết bị:", error);
+    return undefined;
+  }
+};
+
+/**
  * D. Dọn dẹp: Hủy tất cả các lịch thông báo 
  * (Gọi khi nhân viên đăng xuất, hoặc xin nghỉ phép dài ngày)
  */
@@ -122,6 +142,7 @@ export function useNotificationObserver() {
     };
   }, []);
 }
+
 /**
  * 🛠 HÀM TEST NHANH: Thông báo sẽ xuất hiện sau 5 giây
  */
