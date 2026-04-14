@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from "react-router-dom";
 
 const AttendanceStats = () => {
+  const navigate = useNavigate();
   const now = new Date();
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const displayMonth = `Tháng ${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
@@ -14,10 +16,10 @@ const AttendanceStats = () => {
   };
   useEffect(() => {
     axios.get(`http://localhost:5000/api/manager/attendance-stats?month=${month}`)
-      .then(res => {
-        console.log("API DATA:", res.data);
-        setData(res.data);
-      })
+  .then(res => {
+    console.log("API DATA FULL:", JSON.stringify(res.data, null, 2)); // 👈 SỬA Ở ĐÂY
+    setData(res.data);
+  })
       .catch(err => console.error("API ERROR:", err));
   }, [month]);
 
@@ -28,7 +30,9 @@ const AttendanceStats = () => {
     const m = Math.round(minutes % 60);
     return `${h}h ${m}m`;
   };
-
+  if (!data) {
+    return <div style={{ padding: 20 }}>Đang tải dữ liệu...</div>;
+  }
   return (
     <div style={container}>
       <div style={wrapper}>
@@ -76,7 +80,7 @@ const AttendanceStats = () => {
         <div style={box}>
           <h4 style={boxTitle}>Tỷ lệ đi trễ theo phòng ban</h4>
 
-          {data?.lateByDept?.map((d, i) => (
+          {Array.isArray(data?.lateByDept) && data.lateByDept.map((d, i) => (
   <Progress
     key={i}
     label={d.label}   // ✅ FIX
@@ -102,14 +106,14 @@ const AttendanceStats = () => {
             </thead>
 
             <tbody>
-  {data?.violators?.length === 0 ? (
+  {!Array.isArray(data?.violators) || data.violators.length === 0 ? (
     <tr>
       <td colSpan="5" style={{ textAlign: 'center', padding: 20 }}>
         Không có dữ liệu vi phạm 🎉
       </td>
     </tr>
   ) : (
-    data?.violators?.map((item, index) => (
+    data.violators.map((item, index) => (
       <tr key={index} style={row}>
         <td style={nameCell}>
           <div style={avatar}>
@@ -129,13 +133,14 @@ const AttendanceStats = () => {
         <td>{item.lateTime}</td>
 
         <td>
-        <button
-  style={btnSmall}
-  onMouseEnter={(e) => e.currentTarget.style.background = '#f59e0b'}
-  onMouseLeave={(e) => e.currentTarget.style.background = '#fef3c7'}
->
-  Nhắc nhở
-</button>
+          <button
+            style={btnSmall}
+            onClick={() => navigate("/notifications", {
+              state: { employee: item }
+            })}
+          >
+            Nhắc nhở
+          </button>
         </td>
       </tr>
     ))
