@@ -1708,12 +1708,53 @@ ALTER TABLE ONLY public.user_account
 ALTER TABLE ONLY public.work_location
     ADD CONSTRAINT work_location_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branch(id) ON DELETE CASCADE;
 
+ALTER TABLE leave_request
+ADD COLUMN updated_at timestamp with time zone;
+ALTER TABLE overtime_request 
+ADD COLUMN updated_at timestamp with time zone;
 
--- Completed on 2026-04-10 08:51:39
+CREATE TYPE public.explanation_type AS ENUM (
+    'forgot_checkin',   -- Quên chấm công vào
+    'forgot_checkout',  -- Quên chấm công ra
+    'system_error',     -- Lỗi hệ thống (máy chấm công hỏng, wifi lỗi...)
+    'late_arrival',     -- Đi muộn
+    'early_leave'       -- Về sớm
+);
 
---
--- PostgreSQL database dump complete
---
+CREATE TABLE public.attendance_explanation_request (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    employee_id uuid NOT NULL,
+    attendance_date date NOT NULL,
+    explanation_type public.explanation_type NOT NULL,
+    proposed_check_in timestamp with time zone,
+    proposed_check_out timestamp with time zone,
+    reason text NOT NULL,
+    attachment_url character varying(500),
+    approver_id uuid,
+    status public.request_status DEFAULT 'pending'::public.request_status,
+    created_at timestamp with time zone,
+     updated_at timestamp with time zone
+    );
+
+    -- Ràng buộc Khóa chính (Primary Key)
+ALTER TABLE ONLY public.attendance_explanation_request 
+    ADD CONSTRAINT attendance_explanation_request_pkey PRIMARY KEY (id);
+
+-- Ràng buộc Khóa ngoại (Foreign Keys)
+ALTER TABLE ONLY public.attendance_explanation_request 
+    ADD CONSTRAINT fk_explanation_employee 
+    FOREIGN KEY (employee_id) REFERENCES public.employee(id) ON DELETE CASCADE;
+
+ALTER TABLE ONLY public.attendance_explanation_request 
+    ADD CONSTRAINT fk_explanation_approver 
+    FOREIGN KEY (approver_id) REFERENCES public.employee(id) ON DELETE SET NULL;
+
+-- Đánh chỉ mục (Indexes) để tăng tốc độ truy vấn t eo nhân viên và ngày tháng
+CREATE INDEX idx_explanation_emp_date ON public.attendance_explanation_request USING btree (employee_id, attendance_date);
+CREATE INDEX idx_explanation_status ON public.attendance_explanation_request USING btree (status);
+ALTER TABLE location_assignment ADD COLUMN end_date DATE;
+
+
 
 \unrestrict Xz65F9r2xMNBaQ3j7PSzmKGDyZW1YLr4xwJD7TSmjc7u94cPvyu7iTlTc1i0FJi
 

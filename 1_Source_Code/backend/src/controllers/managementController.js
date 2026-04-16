@@ -942,8 +942,8 @@ module.exports = {
   getTenureStats,
   getApprovalRequests,
   updateApprovalStatus,
-  getApprovalHistory
-  getAttendanceStats
+  getApprovalHistory,
+  getAttendanceStats,
 };
 
 
