@@ -25,6 +25,10 @@ const contractService = {
   renew: async (id, data) => {
     const response = await axiosClient.post(`/manager/contracts/renew/${id}`, data);
     return response.data || response;
+  },
+  bulkRenew: async (month, year) => {
+    const response = await axiosClient.post('/manager/contracts/bulk-renew', { month, year });
+    return response.data || response;
   }
 };
 
