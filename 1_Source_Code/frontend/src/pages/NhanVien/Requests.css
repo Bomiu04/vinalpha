@@ -24,11 +24,18 @@
 /* HEADER */
 .request-left-header {
   display: flex;
+  
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 25px;
 }
-
+.header-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; 
+  justify-content: center;
+  line-height: 0;
+}
 /* TEXT bên trái (giống contract) */
 .header-left h2 {
   font-size: 1.4rem;
@@ -39,7 +46,8 @@
 .header-left p {
   color: #888;
   font-size: 0.85rem;
-  margin-top: 4px;
+  margin-top: 0px;
+  
 }
 
 /* RIGHT header */
@@ -75,7 +83,8 @@
   font-size: 1rem;
   font-weight: 600;
   color: #2c3e50;
-  margin-bottom: 15px;
+  margin-bottom: 15px; 
+  gap: 0px;
 }
 
 .input-option {
@@ -164,7 +173,7 @@
 
 /* File uploader box */
 .file-uploader {
-  display: flex;
+  display: flex !important;;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -384,7 +393,7 @@
 /* Card dưới */
 .card-request-bot {
   background: #fff;
-  min-height: 814px;
+  min-height: 787px;
   max-height: 814px;
   border-radius: 20px;
   padding: 20px;
@@ -410,6 +419,7 @@
   font-size: 14px;
   display: flex;
   gap: 5px;
+  font-weight: bold;
   align-items: center;
 }
 .toast {

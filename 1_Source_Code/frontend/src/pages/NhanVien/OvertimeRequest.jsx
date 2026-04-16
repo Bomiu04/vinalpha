@@ -286,7 +286,7 @@ useEffect(() => {
     <>
         <div className="request-left-header">
             <div className="header-left">
-                <h2>Tạo xin đơn tăng ca</h2>
+                <h2>Tạo đơn xin tăng ca</h2>
                 <p>Tạo và quản lý đơn tăng ca của bạn.</p>
             </div>
             <div className="header-right">
@@ -373,7 +373,7 @@ useEffect(() => {
                             <p>{calculateHours()}   
                             </p>
                         </div>
-                    </div>
+                </div>
             </div>
 
             <div className="info-section">
@@ -382,7 +382,7 @@ useEffect(() => {
                 </h3>
 
                 <div className="input-grid-1">
-                    <div className="input-group" style={{ marginTop: "20px" }}>
+                    <div className="input-group" style={{ marginTop: "10px" }}>
                     <label>Mô tả nội dung công việc</label>
                     <textarea
                         className="input-option-1"
@@ -512,7 +512,7 @@ useEffect(() => {
   <div className="modal-overlay" onClick={closeModal}>
     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
 
-      <h2 style={{ marginBottom: "20px", fontSize: "20px" }}>
+      <h2 style={{ marginBottom: "20px", fontSize: "20px",fontWeight:"bold" }}>
         Chi tiết đơn tăng ca
       </h2>
 

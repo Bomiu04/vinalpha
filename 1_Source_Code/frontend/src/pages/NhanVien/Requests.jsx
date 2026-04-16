@@ -441,7 +441,7 @@ const diffTime = end - start;
               <label>Ngày bắt đầu</label>
               <input
                 type="date"
-className="input-option"
+                className="input-option"
                 value={form.startDate}
                 onChange={(e) =>
                   setForm({ ...form, startDate: e.target.value })
@@ -483,7 +483,7 @@ className="input-option"
           </h3>
 
           <div className="input-grid-1">
-            <div className="input-group" style={{ marginTop: "20px" }}>
+            <div className="input-group" style={{ marginTop: "10px" }}>
               <label>Lý do cụ thể</label>
               <textarea
                 className="input-option-1"
@@ -627,7 +627,7 @@ className="input-option"
       {showModal && selectedRequest && (
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 style={{marginBottom:"20px",fontSize:"20px"}}>Chi tiết đơn nghỉ phép</h2>
+            <h2 style={{marginBottom:"20px",fontSize:"20px",fontWeight:"bold"}}>Chi tiết đơn nghỉ phép</h2>
 
             {/* THÔNG TIN CHUNG */}
             <div className="info-section">
