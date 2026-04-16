@@ -47,8 +47,8 @@ const getEmployees = async (req, res) => {
     res.status(200).json(formattedData);
 
   } catch (error) {
-    console.error('Lấy API getEmployees:', error);
-    res.status(500).json({ success: false, message: 'Lấy Server khi lấy danh sách nhân viên' });
+    console.error('Lỗi API getEmployees:', error);
+    res.status(500).json({ success: false, message: 'Lỗi Server khi lấy danh sách nhân viên' });
   }
 };
 
@@ -81,7 +81,6 @@ const getEmployeeById = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
 
-    // Format láº¡i tráº¡ng thÃ¡i
     const emp = result[0];
     let statusText = 'Không xác định';
     if (emp.status === 'active') statusText = 'Đang làm việc';
@@ -93,8 +92,8 @@ const getEmployeeById = async (req, res) => {
     res.status(200).json(emp);
 
   } catch (error) {
-    console.error('Lấy API getEmployeeById:', error);
-    res.status(500).json({ success: false, message: 'Lấy Server' });
+    console.error('Lỗi API getEmployeeById:', error);
+    res.status(500).json({ success: false, message: 'Lỗi Server' });
   }
 };
 
@@ -155,13 +154,12 @@ const updateEmployee = async (req, res) => {
     res.status(200).json({ success: true, message: 'Cập nhật hồ sơ thành công!' });
 
   } catch (error) {
-    console.error('Lá»—i API updateEmployee:', error);
-    res.status(500).json({ success: false, message: 'Lấy Server khi cập nhật' });
+    console.error('Lỗi API updateEmployee:', error);
+    res.status(500).json({ success: false, message: 'Lỗi Server khi cập nhật' });
   }
 };
 const getFormOptions = async (req, res) => {
   try {
-    // 1. Láº¥y danh sÃ¡ch PhÃ²ng ban
     const departments = await db.query(
       "SELECT id, department_name FROM department ORDER BY department_name", 
       { type: db.QueryTypes.SELECT }
@@ -183,7 +181,7 @@ const getFormOptions = async (req, res) => {
 
     res.status(200).json({ departments, positions, managers });
   } catch (error) {
-    console.error('Lá»—i API getFormOptions:', error);
+    console.error('Lỗi API getFormOptions:', error);
     res.status(500).json({ success: false, message: 'Lỗi Server khi tạo dữ liệu form' });
   }
 };
@@ -202,7 +200,6 @@ const createEmployee = async (req, res) => {
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const employee_code = `NV-${new Date().getFullYear()}-${randomSuffix}`;
 
-    // ðŸ‘‰ ÄÃ£ xÃ³a hoÃ n toÃ n department_id khá»i cÃ¢u Query
     const insertEmpQuery = `
       INSERT INTO employee (
         employee_code, full_name, phone_number, personal_email, address, 
@@ -260,17 +257,11 @@ const createEmployee = async (req, res) => {
       transaction: t
     });
 
-    // ==========================================
-    // 4. Má»ŒI THá»¨ THÃ€NH CÃ”NG -> GHI VÃ€O DATABASE
-    // ==========================================
     await t.commit();
 
-    // ==========================================
-    // 5. SAU KHI GHI XONG Má»šI Báº®T Äáº¦U Gá»¬I EMAIL
-    // ==========================================
 if (send_email === true || send_email === 'true') {
       try {
-        const targetEmail = personal_email || work_email || username; // Dá»± phÃ²ng trÆ°á»ng há»£p user khÃ´ng nháº­p email cÃ¡ nhÃ¢n
+        const targetEmail = personal_email || work_email || username; 
 
         await sendAccountEmail(
           targetEmail, 
@@ -284,7 +275,6 @@ if (send_email === true || send_email === 'true') {
         return res.status(201).json({ success: true, message: 'Thêm nhân viên và gửi email cấp tài khoản thành công!' });
       } catch (emailError) {
         console.error('Lỗi gửi email:', emailError);
-        // Tráº£ vá» 201 vÃ¬ DB Ä‘Ã£ ghi thÃ nh cÃ´ng, chá»‰ bÃ¡o lá»—i pháº§n mail
         return res.status(201).json({ 
           success: true, 
           message: 'Đã thêm nhân viên thành công, nhưng cấu hình gửi Email đang bị lỗi. Vui lòng cấp lại pass sau.' 
@@ -292,18 +282,16 @@ if (send_email === true || send_email === 'true') {
       }
     }
 
-    // Náº¿u khÃ´ng tick Ã´ gá»­i mail
     return res.status(201).json({ success: true, message: 'Thêm nhân viên và cấp tài khoản thành công!' });
 
   } catch (error) {
-    // Chá»‰ Rollback khi lá»—i CÆ  Sá»ž Dá»® LIá»†U
     try {
         await t.rollback();
     } catch (rbError) {
-        console.error('Lá»—i rollback:', rbError);
+        console.error('Lỗi rollback:', rbError);
     }
     
-    console.error('Lá»—i API createEmployee:', error);
+    console.error('Lỗi API createEmployee:', error);
     if (error.original && error.original.code === '23505') {
       return res.status(400).json({ success: false, message: 'Email/Username này đã tồn tại trong hệ thống!' });
     }
@@ -326,8 +314,6 @@ const deleteEmployee = async (req, res) => {
       await t.rollback();
       return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên' });
     }
-
-    // Bá» tham chiáº¿u tá»›i nhÃ¢n viÃªn (trÃ¡nh RESTRICT khi xÃ³a)
     await db.query('UPDATE department SET manager_id = NULL WHERE manager_id = :id', {
       replacements: { id },
       transaction: t
@@ -341,7 +327,6 @@ const deleteEmployee = async (req, res) => {
       transaction: t
     });
 
-    // CÃ¡c báº£ng FK tá»›i employee thÆ°á»ng lÃ  ON DELETE RESTRICT â€” xÃ³a trÆ°á»›c khi xÃ³a employee
     await db.query('DELETE FROM attendance WHERE employee_id = :id', {
       replacements: { id },
       transaction: t
@@ -424,7 +409,6 @@ const query = `
 
 const getAbsentEmployees = async (req, res) => {
   try {
-    // LÆ°u Ã½: Äá»•i tÃªn báº£ng 'leave_request' vÃ  'attendance' cho khá»›p vá»›i database
 const query = `
       SELECT 
         e.full_name, 
@@ -449,7 +433,7 @@ const query = `
 
     res.status(200).json(employees);
   } catch (error) {
-    console.error('Lá»—i API getAbsentEmployees:', error);
+    console.error('Lỗi API getAbsentEmployees:', error);
     res.status(500).json({ success: false, message: 'Lỗi Server khi tải dữ liệu vắng mặt' });
   }
 };
@@ -498,7 +482,7 @@ const getChangesList = async (req, res) => {
         e.id AS employee_id,
         e.full_name,
         d.department_name,
-        'Gia nháº­p' AS type,
+        'Gia nhập' AS type,
         e.join_date AS date
       FROM employee e
       LEFT JOIN position p ON e.position_id = p.id
@@ -511,7 +495,7 @@ const getChangesList = async (req, res) => {
         e.id AS employee_id,
         e.full_name,
         d.department_name,
-        'Nghá»‰ viá»‡c' AS type,
+        'Nghỉ việc' AS type,
         e.updated_at AS date
       FROM employee e
       LEFT JOIN position p ON e.position_id = p.id
@@ -525,7 +509,7 @@ const getChangesList = async (req, res) => {
         e.id AS employee_id,
         e.full_name,
         d.department_name,
-        'Nghá»‰ phÃ©p' AS type,
+        'Nghỉ phép' AS type,
         lr.start_datetime AS date
       FROM leave_request lr
       JOIN employee e ON e.id = lr.employee_id
@@ -545,7 +529,7 @@ const getChangesList = async (req, res) => {
     res.status(200).json(result);
 
   } catch (error) {
-    console.error('Lá»—i getChangesList:', error);
+    console.error('Lỗi getChangesList:', error);
     res.status(500).json({ message: 'Lỗi server' });
   }
 };
@@ -676,8 +660,8 @@ const getApprovalRequests = async (req, res) => {
     res.json(combined);
 
   } catch (error) {
-    console.error("âŒ getApprovalRequests error:", error);
-    res.status(500).json({ message: "Lá»—i server" });
+    console.error(" getApprovalRequests error:", error);
+    res.status(500).json({ message: "Lỗi server" });
   }
 };
 
@@ -721,13 +705,13 @@ const updateApprovalStatus = async (req, res) => {
     });
 
     res.json({
-      message: 'Cáº­p nháº­t thÃ nh cÃ´ng',
+      message: 'Cập nhật thành công',
       data: result[0]
     });
 
   } catch (error) {
-    console.error("âŒ updateApprovalStatus:", error);
-    res.status(500).json({ message: "Lá»—i server" });
+    console.error(" updateApprovalStatus:", error);
+    res.status(500).json({ message: "Lỗi server" });
   }
 };
 const getApprovalHistory = async (req, res) => {
@@ -772,7 +756,7 @@ const getApprovalHistory = async (req, res) => {
     res.json(rows);
 
   } catch (error) {
-    console.error("âŒ getApprovalHistory:", error);
+    console.error(" getApprovalHistory:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -781,7 +765,7 @@ const getAttendanceStats = async (req, res) => {
   try {
     let monthParam = req.query.month ? String(req.query.month) : '';
     if (monthParam && !/^\d{4}-\d{2}$/.test(String(monthParam))) {
-      return res.status(400).json({ message: 'Tham sá»‘ month (YYYY-MM) khÃ´ng há»£p lá»‡' });
+      return res.status(400).json({ message: 'Tham số month (YYYY-MM) không hợp lệ' });
     }
 
     if (!monthParam) {
@@ -1055,8 +1039,8 @@ const getAttendanceStats = async (req, res) => {
       attentionEmployees,
     });
   } catch (error) {
-    console.error('Lá»—i getAttendanceStats:', error);
-    res.status(500).json({ message: 'Lá»—i server khi táº£i thá»‘ng kÃª cháº¥m cÃ´ng' });
+    console.error('Lỗi getAttendanceStats:', error);
+    res.status(500).json({ message: 'Lỗi server khi tải thống kê chấm công' });
   }
 };
 const getPayrollOverview = async (req, res) => {
