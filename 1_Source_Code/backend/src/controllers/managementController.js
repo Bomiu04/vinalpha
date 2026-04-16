@@ -942,7 +942,7 @@ module.exports = {
   getTenureStats,
   getApprovalRequests,
   updateApprovalStatus,
-  getApprovalHistory
+  getApprovalHistory,
   getAttendanceStats
 };
 
