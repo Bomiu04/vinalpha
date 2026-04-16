@@ -89,6 +89,59 @@ export default function ContractStatistics() {
     setIsRenewModalOpen(true);
   };
 
+  const calculateEndDate = useCallback((type, start) => {
+    if (!start || type === 'indefinite') return '';
+    
+    const startDate = new Date(start);
+    const endDate = new Date(startDate);
+
+    if (type === 'fixed_1y') {
+      endDate.setFullYear(startDate.getFullYear() + 1);
+      endDate.setDate(startDate.getDate() - 1);
+    } else if (type === 'fixed_3y') {
+      endDate.setFullYear(startDate.getFullYear() + 3);
+      endDate.setDate(startDate.getDate() - 1);
+    } else if (type === 'probation') {
+      endDate.setMonth(startDate.getMonth() + 2); // Giả định thử việc 2 tháng
+      endDate.setDate(startDate.getDate() - 1);
+    }
+
+    return endDate.toISOString().split('T')[0];
+  }, []);
+
+  // Sync end_date when type or start_date changes
+  useEffect(() => {
+    if (isRenewModalOpen) {
+      const newEnd = calculateEndDate(renewFormData.contract_type, renewFormData.start_date);
+      setRenewFormData(prev => ({ ...prev, end_date: newEnd }));
+    }
+  }, [renewFormData.contract_type, renewFormData.start_date, isRenewModalOpen, calculateEndDate]);
+
+  const handleBulkRenew = async () => {
+    if (expiringContracts.length === 0) {
+      toast.error('Không có hợp đồng nào để gia hạn trong tháng này.');
+      return;
+    }
+
+    const message = `Hành động này sẽ thực hiện gia hạn TOÀN BỘ (${expiringContracts.length}) hợp đồng hết hạn trong tháng này thêm 1 năm.\n\nBạn có chắc chắn muốn tiếp tục?`;
+    
+    if (window.confirm(message)) {
+      setIsLoading(true); // Dùng isLoading chung cho tiện
+      try {
+        const month = targetDate.getMonth() + 1;
+        const year = targetDate.getFullYear();
+        const result = await contractService.bulkRenew(month, year);
+        toast.success(result.message || 'Gia hạn hàng loạt thành công!');
+        fetchData();
+      } catch (error) {
+        console.error('Lỗi gia hạn hàng loạt:', error);
+        toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi gia hạn hàng loạt');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
   const handleRenewSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -301,7 +354,10 @@ export default function ContractStatistics() {
             <AlertOctagon className="w-5 h-5 text-red-500" />
             Hợp đồng hết hạn trong {formatMonth(targetDate)}
           </h2>
-          <button className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+          <button 
+            onClick={handleBulkRenew}
+            className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+          >
             Thông báo gia hạn hàng loạt
           </button>
         </div>

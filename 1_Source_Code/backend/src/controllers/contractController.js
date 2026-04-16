@@ -214,6 +214,87 @@ const contractController = {
       console.error('Lỗi renewContract:', error);
       res.status(500).json({ message: 'Lỗi server khi gia hạn hợp đồng.' });
     }
+  },
+
+  // 5. Gia hạn hàng loạt các hợp đồng hết hạn trong tháng
+  bulkRenewContract: async (req, res) => {
+    const t = await db.transaction();
+    try {
+      const { month, year } = req.body;
+      if (!month || !year) {
+        return res.status(400).json({ message: 'Thiếu thông tin tháng/năm để gia hạn hàng loạt.' });
+      }
+
+      // 1. Lấy danh sách các HĐ hết hạn trong tháng này
+      const expiringQuery = `
+        SELECT c.id, c.employee_id, e.employee_code, c.contract_type, c.end_date, c.base_salary, c.allowances
+        FROM contract c
+        JOIN employee e ON c.employee_id = e.id
+        WHERE EXTRACT(MONTH FROM c.end_date) = :month 
+          AND EXTRACT(YEAR FROM c.end_date) = :year
+          AND c.is_active = true;
+      `;
+      const expiringContracts = await db.query(expiringQuery, { 
+        replacements: { month, year }, 
+        type: db.QueryTypes.SELECT,
+        transaction: t
+      });
+
+      if (expiringContracts.length === 0) {
+        await t.rollback();
+        return res.status(200).json({ success: true, message: 'Không có hợp đồng nào cần gia hạn trong tháng này.' });
+      }
+
+      const currentYear = new Date().getFullYear();
+
+      for (const contract of expiringContracts) {
+        // Đóng HĐ cũ
+        await db.query(`UPDATE contract SET is_active = false WHERE id = :id`, {
+          replacements: { id: contract.id },
+          transaction: t
+        });
+
+        // Tính ngày mới
+        const oldEndDate = new Date(contract.end_date);
+        const newStartDate = new Date(oldEndDate);
+        newStartDate.setDate(oldEndDate.getDate() + 1);
+        
+        const newEndDate = new Date(newStartDate);
+        newEndDate.setFullYear(newStartDate.getFullYear() + 1);
+        newEndDate.setDate(newEndDate.getDate() - 1);
+
+        const newContractNumber = `HD-${contract.employee_code}-${currentYear}-B`;
+
+        // Insert HĐ mới
+        await db.query(`
+          INSERT INTO contract (
+            contract_number, employee_id, contract_type, 
+            start_date, end_date, base_salary, allowances, 
+            is_active, created_at, updated_at
+          ) VALUES (
+            :num, :emp, :type, :start, :end, :sal, :all, true, NOW(), NOW()
+          )
+        `, {
+          replacements: {
+            num: newContractNumber,
+            emp: contract.employee_id,
+            type: contract.contract_type,
+            start: newStartDate.toISOString().split('T')[0],
+            end: newEndDate.toISOString().split('T')[0],
+            sal: contract.base_salary || 0,
+            all: JSON.stringify(contract.allowances || {})
+          },
+          transaction: t
+        });
+      }
+
+      await t.commit();
+      res.status(200).json({ success: true, message: `Đã gia hạn thành công ${expiringContracts.length} hợp đồng.` });
+    } catch (error) {
+      if (t) await t.rollback();
+      console.error('Lỗi bulkRenewContract:', error);
+      res.status(500).json({ message: 'Lỗi server khi gia hạn hàng loạt.' });
+    }
   }
 };
 

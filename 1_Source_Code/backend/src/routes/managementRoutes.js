@@ -62,5 +62,6 @@ router.get('/contracts/overview', contractController.getContractOverview);
 router.get('/contracts/breakdown', contractController.getContractTypeBreakdown);
 router.get('/contracts/expiring', contractController.getExpiringContracts);
 router.post('/contracts/renew/:id', contractController.renewContract);
+router.post('/contracts/bulk-renew', contractController.bulkRenewContract);
 
 module.exports = router;
