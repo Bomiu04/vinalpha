@@ -117,17 +117,20 @@ const buildPayrollViewModel = (payrollRow, employeeProfile, previousPayrollRow =
     normalizeNumber(payrollRow?.base_salary_snapshot);
   const workDaysForSalary = normalizeNumber(payrollRow?.total_work_days);
   const overtimeForSalary = normalizeNumber(payrollRow?.overtime);
+  const standardWorkDaysForSalary = normalizeNumber(payrollRow?.standard_work_days);
   const weightedOvertimeForSalary = overtimeForSalary * 2;
   const salaryByAttendance = Math.max(
     0,
-    ((workDaysForSalary + weightedOvertimeForSalary) * monthIncome) / 26
+    standardWorkDaysForSalary > 0
+      ? ((workDaysForSalary + weightedOvertimeForSalary) * monthIncome) / standardWorkDaysForSalary
+      : 0
   );
 
   const workDays = payrollRow?.total_work_days;
   const workDaysDisplay =
     workDays != null && workDays !== '' && Number.isFinite(Number(workDays))
-      ? `${Number(workDays).toFixed(2).replace('.', ',')}/26`
-      : '0,00/26';
+      ? `${Number(workDays).toFixed(2).replace('.', ',')}/${Number(standardWorkDaysForSalary || 0).toFixed(0)}`
+      : `0,00/${Number(standardWorkDaysForSalary || 0).toFixed(0)}`;
   const overtimeDisplay = Number.isFinite(overtimeForSalary)
     ? Number(overtimeForSalary).toFixed(2).replace('.', ',')
     : '0,00';
@@ -174,10 +177,13 @@ const buildPayrollViewModel = (payrollRow, employeeProfile, previousPayrollRow =
     normalizeNumber(previousPayrollRow?.base_salary_snapshot);
   const previousWorkDays = normalizeNumber(previousPayrollRow?.total_work_days);
   const previousOvertime = normalizeNumber(previousPayrollRow?.overtime);
+  const previousStandardWorkDays = normalizeNumber(previousPayrollRow?.standard_work_days);
   const previousWeightedOvertime = previousOvertime * 2;
   const previousSalaryByAttendance = Math.max(
     0,
-    ((previousWorkDays + previousWeightedOvertime) * previousMonthIncome) / 26
+    previousStandardWorkDays > 0
+      ? ((previousWorkDays + previousWeightedOvertime) * previousMonthIncome) / previousStandardWorkDays
+      : 0
   );
   const previousIncomes = [
     previousSalaryByAttendance,
