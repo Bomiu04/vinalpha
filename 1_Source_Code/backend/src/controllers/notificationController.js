@@ -1,15 +1,80 @@
-const sequelize = require('../config/database');
+﻿const sequelize = require('../config/database');
 const { QueryTypes } = require('sequelize');
 const axios = require('axios');
 
-/** Đồng bộ với .data: mặc định UI là 'Toàn công ty'; DB cũ có thể còn 'Tất cả nhân viên'. */
+/** Ãƒâ€žÃ‚ÂÃƒÂ¡Ã‚Â»Ã¢â‚¬Å“ng bÃƒÂ¡Ã‚Â»Ã¢â€žÂ¢ vÃƒÂ¡Ã‚Â»Ã¢â‚¬Âºi .data: mÃƒÂ¡Ã‚ÂºÃ‚Â·c Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¹nh UI lÃƒÆ’Ã‚Â  'ToÃƒÆ’Ã‚Â n cÃƒÆ’Ã‚Â´ng ty'; DB cÃƒâ€¦Ã‚Â© cÃƒÆ’Ã‚Â³ thÃƒÂ¡Ã‚Â»Ã†â€™ cÃƒÆ’Ã‚Â²n 'TÃƒÂ¡Ã‚ÂºÃ‚Â¥t cÃƒÂ¡Ã‚ÂºÃ‚Â£ nhÃƒÆ’Ã‚Â¢n viÃƒÆ’Ã‚Âªn'. */
 function isCompanyWideTarget(target) {
-  const t = String(target || '').trim();
-  return t === 'Toàn công ty' || t === 'Tất cả nhân viên';
+  return getTargetScope(target) === 'company';
 }
 
+const TARGET_COMPANY = '\u0054o\u00e0n c\u00f4ng ty';
+const TARGET_COMPANY_LEGACY = '\u0054\u1ea5t c\u1ea3 nh\u00e2n vi\u00ean';
+const TARGET_DEPARTMENT = 'Ph\u00f2ng ban';
+const TARGET_EMPLOYEE = 'C\u00e1 nh\u00e2n';
+const STATUS_DRAFT = 'Nh\u00e1p';
+const STATUS_SENT = '\u0110\u00e3 g\u1eedi';
+const STATUS_EDITED = '\u0110\u00e3 ch\u1ec9nh s\u1eeda';
+
+function normalizeText(value) {
+  return String(value || '').normalize('NFC').trim().toLowerCase();
+}
+
+function getTargetScope(target) {
+  const normalized = normalizeText(target);
+  if (!normalized || normalized === normalizeText(TARGET_COMPANY) || normalized === normalizeText(TARGET_COMPANY_LEGACY)) {
+    return 'company';
+  }
+  if (normalized === normalizeText(TARGET_DEPARTMENT)) return 'department';
+  if (normalized === normalizeText(TARGET_EMPLOYEE)) return 'employee';
+  return 'company';
+}
+
+function getPersistedTarget(target) {
+  const scope = getTargetScope(target);
+  if (scope === 'department') return TARGET_DEPARTMENT;
+  if (scope === 'employee') return TARGET_EMPLOYEE;
+  return TARGET_COMPANY;
+}
+async function sendExpoPushIfPossible(notificationId, title, desc) {
+  try {
+    const fetchTokensQuery = `
+      SELECT u.expo_push_token
+      FROM user_account u
+      JOIN notification_recipient nr ON nr.employee_id = u.employee_id
+      WHERE nr.notification_id = :notiId AND u.expo_push_token IS NOT NULL
+    `;
+
+    const tokens = await sequelize.query(fetchTokensQuery, {
+      replacements: { notiId: notificationId },
+      type: QueryTypes.SELECT,
+    });
+
+    if (!tokens || tokens.length === 0) return;
+
+    const pushMessages = tokens.map((t) => ({
+      to: t.expo_push_token,
+      title: title || 'ThÃƒÂ´ng bÃƒÂ¡o mÃ¡Â»â€ºi',
+      body: desc || 'BÃ¡ÂºÂ¡n cÃƒÂ³ mÃ¡Â»â„¢t thÃƒÂ´ng bÃƒÂ¡o mÃ¡Â»â€ºi tÃ¡Â»Â« cÃƒÂ´ng ty.',
+      sound: 'default',
+    }));
+
+    await axios.post('https://exp.host/--/api/v2/push/send', pushMessages, {
+      headers: {
+        Accept: 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch (err) {
+    if (err?.original?.code === '42703' || String(err?.message || '').includes('expo_push_token')) {
+      console.warn('Skip Expo push: user_account.expo_push_token chÃ†Â°a tÃ¡Â»â€œn tÃ¡ÂºÂ¡i trong schema hiÃ¡Â»â€¡n tÃ¡ÂºÂ¡i.');
+      return;
+    }
+    console.error('Expo Push Error:', err?.response?.data || err?.message || err);
+  }
+}
 const notificationController = {
-  // --- Admin: danh sách ---
+  // --- Admin: danh sÃƒÆ’Ã‚Â¡ch ---
   getAllNotifications: async (req, res) => {
     try {
       const notifications = await sequelize.query(
@@ -18,12 +83,12 @@ const notificationController = {
       );
       res.json(notifications);
     } catch (err) {
-      console.error('🔥 Lỗi lấy thông báo:', err);
-      res.status(500).json({ message: 'Lỗi lấy danh sách thông báo' });
+      console.error('ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥ LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i lÃƒÂ¡Ã‚ÂºÃ‚Â¥y thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o:', err);
+      res.status(500).json({ message: 'LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i lÃƒÂ¡Ã‚ÂºÃ‚Â¥y danh sÃƒÆ’Ã‚Â¡ch thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o' });
     }
   },
 
-  // --- Admin: tạo mới (nháp / gửi + recipient) ---
+  // --- Admin: tÃƒÂ¡Ã‚ÂºÃ‚Â¡o mÃƒÂ¡Ã‚Â»Ã¢â‚¬Âºi (nhÃƒÆ’Ã‚Â¡p / gÃƒÂ¡Ã‚Â»Ã‚Â­i + recipient) ---
   createNotification: async (req, res) => {
     const t = await sequelize.transaction();
     try {
@@ -39,11 +104,11 @@ const notificationController = {
         status,
       } = req.body;
 
-      const finalStatus = status === 'Nháp' ? 'Nháp' : 'Đã gửi';
+      const finalStatus = status === STATUS_DRAFT ? STATUS_DRAFT : STATUS_SENT;
 
       if (!title || !String(title).trim()) {
         await t.rollback();
-        return res.status(400).json({ message: 'Thiếu tiêu đề thông báo' });
+        return res.status(400).json({ message: 'ThiÃƒÂ¡Ã‚ÂºÃ‚Â¿u tiÃƒÆ’Ã‚Âªu Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã‚Â thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o' });
       }
 
       const targDept = department_id
@@ -52,11 +117,11 @@ const notificationController = {
       let safeDeptId =
         Number.isFinite(targDept) && targDept > 0 ? targDept : null;
       let safeEmpId = employee_id || null;
-      const tgtNorm = target || 'Toàn công ty';
-      if (tgtNorm === 'Toàn công ty') {
+      const tgtNorm = getPersistedTarget(target);
+      if (getTargetScope(tgtNorm) === 'company') {
         safeDeptId = null;
         safeEmpId = null;
-      } else if (tgtNorm === 'Phòng ban') {
+      } else if (getTargetScope(tgtNorm) === 'department') {
         safeEmpId = null;
       }
 
@@ -68,7 +133,7 @@ const notificationController = {
             title,
             content,
             type: notification_type || 'info',
-            target: target || 'Toàn công ty',
+            target: tgtNorm,
             desc: desc || '',
             notiStatus: finalStatus,
             sender: sender_id || null,
@@ -81,17 +146,17 @@ const notificationController = {
 
       const notificationId = newNotiRows?.[0]?.id;
       if (!notificationId) {
-        throw new Error('Không lấy được ID thông báo vừa tạo.');
+        throw new Error('KhÃƒÆ’Ã‚Â´ng lÃƒÂ¡Ã‚ÂºÃ‚Â¥y Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Â£c ID thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o vÃƒÂ¡Ã‚Â»Ã‚Â«a tÃƒÂ¡Ã‚ÂºÃ‚Â¡o.');
       }
 
-      if (finalStatus !== 'Nháp') {
+      if (finalStatus !== STATUS_DRAFT) {
         if (isCompanyWideTarget(tgtNorm)) {
           await sequelize.query(
             `INSERT INTO notification_recipient (notification_id, employee_id)
              SELECT :notiId, id FROM employee WHERE status = 'active'`,
             { replacements: { notiId: notificationId }, transaction: t }
           );
-        } else if (tgtNorm === 'Phòng ban' && safeDeptId) {
+        } else if (getTargetScope(tgtNorm) === 'department' && safeDeptId) {
           await sequelize.query(
             `INSERT INTO notification_recipient (notification_id, employee_id)
              SELECT :notiId, e.id FROM employee e 
@@ -102,7 +167,7 @@ const notificationController = {
               transaction: t,
             }
           );
-        } else if (tgtNorm === 'Cá nhân' && safeEmpId) {
+        } else if (getTargetScope(tgtNorm) === 'employee' && safeEmpId) {
           await sequelize.query(
             `INSERT INTO notification_recipient (notification_id, employee_id) VALUES (:notiId, :empId)`,
             {
@@ -116,48 +181,22 @@ const notificationController = {
       await t.commit();
 
       // === FIRE PUSH NOTIFICATION (BACKGROUND) ===
-      if (finalStatus !== 'Nháp') {
-        const fetchTokensQuery = `
-          SELECT u.expo_push_token 
-          FROM user_account u
-          JOIN notification_recipient nr ON nr.employee_id = u.employee_id
-          WHERE nr.notification_id = :notiId AND u.expo_push_token IS NOT NULL
-        `;
-        const tokens = await sequelize.query(fetchTokensQuery, {
-          replacements: { notiId: notificationId },
-          type: QueryTypes.SELECT
-        });
-
-        if (tokens && tokens.length > 0) {
-          const pushMessages = tokens.map(t => ({
-            to: t.expo_push_token,
-            title: title || 'Thông báo mới',
-            body: desc || 'Bạn có một thông báo mới từ công ty.',
-            sound: 'default'
-          }));
-
-          axios.post('https://exp.host/--/api/v2/push/send', pushMessages, {
-            headers: {
-              'Accept': 'application/json',
-              'Accept-encoding': 'gzip, deflate',
-              'Content-Type': 'application/json',
-            }
-          }).then(res => console.log('Expo Push Sent:', res.data))
-            .catch(err => console.error('Expo Push Error:', err?.response?.data || err.message));
-        }
+      if (finalStatus !== 'Nh\u00e1p') {
+        sendExpoPushIfPossible(notificationId, title, desc);
       }
 
-      res.status(201).json({ message: 'Gửi thông báo thành công', id: notificationId });
+
+      res.status(201).json({ message: 'Gui thong bao thanh cong', id: notificationId });
     } catch (err) {
       await t.rollback();
-      console.error('🔥 Lỗi tạo thông báo:', err);
+      console.error('ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥ LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i tÃƒÂ¡Ã‚ÂºÃ‚Â¡o thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o:', err);
       res
         .status(500)
-        .json({ message: 'Lỗi hệ thống khi lưu dữ liệu', error: err.message });
+        .json({ message: 'LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i hÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡ thÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœng khi lÃƒâ€ Ã‚Â°u dÃƒÂ¡Ã‚Â»Ã‚Â¯ liÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡u', error: err.message });
     }
   },
 
-  // --- Admin: cập nhật ---
+  // --- Admin: cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t ---
   updateNotification: async (req, res) => {
     const t = await sequelize.transaction();
     try {
@@ -176,11 +215,11 @@ const notificationController = {
 
       if (!title || !String(title).trim()) {
         await t.rollback();
-        return res.status(400).json({ message: 'Thiếu tiêu đề thông báo' });
+        return res.status(400).json({ message: 'ThiÃƒÂ¡Ã‚ÂºÃ‚Â¿u tiÃƒÆ’Ã‚Âªu Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã‚Â thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o' });
       }
 
       const resolvedStatus =
-        status === 'Nháp' ? 'Nháp' : status || 'Đã chỉnh sửa';
+        status === STATUS_DRAFT ? STATUS_DRAFT : status || STATUS_EDITED;
 
       const uDept = department_id
         ? parseInt(String(department_id), 10)
@@ -188,11 +227,11 @@ const notificationController = {
       let uSafeDept =
         Number.isFinite(uDept) && uDept > 0 ? uDept : null;
       let u_safeEmp = employee_id || null;
-      const uTgt = target || 'Toàn công ty';
+      const uTgt = getPersistedTarget(target);
       if (isCompanyWideTarget(uTgt)) {
         uSafeDept = null;
         u_safeEmp = null;
-      } else if (uTgt === 'Phòng ban') {
+      } else if (getTargetScope(uTgt) === 'department') {
         u_safeEmp = null;
       }
 
@@ -214,7 +253,7 @@ const notificationController = {
             title,
             content,
             type: notification_type || 'info',
-            target: target || 'Toàn công ty',
+            target: tgtNorm,
             desc: desc || '',
             status: resolvedStatus,
             sender: sender_id || null,
@@ -230,14 +269,14 @@ const notificationController = {
         { replacements: { id }, transaction: t }
       );
 
-      if (resolvedStatus !== 'Nháp') {
+      if (resolvedStatus !== STATUS_DRAFT) {
         if (isCompanyWideTarget(uTgt)) {
           await sequelize.query(
             `INSERT INTO notification_recipient (notification_id, employee_id)
             SELECT :notiId, id FROM employee WHERE status = 'active'`,
             { replacements: { notiId: id }, transaction: t }
           );
-        } else if (uTgt === 'Phòng ban' && uSafeDept) {
+        } else if (getTargetScope(uTgt) === 'department' && uSafeDept) {
           await sequelize.query(
             `INSERT INTO notification_recipient (notification_id, employee_id)
              SELECT :notiId, e.id
@@ -247,7 +286,7 @@ const notificationController = {
                AND e.status = 'active'`,
             { replacements: { notiId: id, deptId: uSafeDept }, transaction: t }
           );
-        } else if (uTgt === 'Cá nhân' && u_safeEmp) {
+        } else if (getTargetScope(uTgt) === 'employee' && u_safeEmp) {
           await sequelize.query(
             `INSERT INTO notification_recipient (notification_id, employee_id)
              VALUES (:notiId, :empId)`,
@@ -257,17 +296,17 @@ const notificationController = {
       }
 
       await t.commit();
-      res.json({ message: 'Cập nhật thông báo thành công' });
+      res.json({ message: 'CÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng' });
     } catch (err) {
       await t.rollback();
-      console.error('🔥 Lỗi cập nhật thông báo:', err);
+      console.error('ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¥ LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o:', err);
       res
         .status(500)
-        .json({ message: 'Lỗi hệ thống khi cập nhật', error: err.message });
+        .json({ message: 'LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i hÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡ thÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœng khi cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t', error: err.message });
     }
   },
 
-  // --- Admin: chi tiết ---
+  // --- Admin: chi tiÃƒÂ¡Ã‚ÂºÃ‚Â¿t ---
   getNotificationById: async (req, res) => {
     try {
       const [notification] = await sequelize.query(
@@ -275,14 +314,14 @@ const notificationController = {
         { replacements: { id: req.params.id }, type: QueryTypes.SELECT }
       );
       if (!notification)
-        return res.status(404).json({ message: 'Không tìm thấy thông báo' });
+        return res.status(404).json({ message: 'KhÃƒÆ’Ã‚Â´ng tÃƒÆ’Ã‚Â¬m thÃƒÂ¡Ã‚ÂºÃ‚Â¥y thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o' });
       res.json(notification);
     } catch (err) {
-      res.status(500).json({ message: 'Lỗi server' });
+      res.status(500).json({ message: 'LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i server' });
     }
   },
 
-  // --- Admin: chi tiết đầy đủ (người gửi từ employee, người nhận từ notification_recipient) ---
+  // --- Admin: chi tiÃƒÂ¡Ã‚ÂºÃ‚Â¿t Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚ÂºÃ‚Â§y Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã‚Â§ (ngÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Âi gÃƒÂ¡Ã‚Â»Ã‚Â­i tÃƒÂ¡Ã‚Â»Ã‚Â« employee, ngÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Âi nhÃƒÂ¡Ã‚ÂºÃ‚Â­n tÃƒÂ¡Ã‚Â»Ã‚Â« notification_recipient) ---
   getNotificationAdminDetail: async (req, res) => {
     try {
       const { id } = req.params;
@@ -305,7 +344,7 @@ const notificationController = {
       );
       const row = rows[0];
       if (!row)
-        return res.status(404).json({ message: 'Không tìm thấy thông báo' });
+        return res.status(404).json({ message: 'KhÃƒÆ’Ã‚Â´ng tÃƒÆ’Ã‚Â¬m thÃƒÂ¡Ã‚ÂºÃ‚Â¥y thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o' });
 
       const countRows = await sequelize.query(
         `SELECT COUNT(*)::int AS total FROM notification_recipient WHERE notification_id = :id`,
@@ -397,11 +436,11 @@ const notificationController = {
       });
     } catch (err) {
       console.error(err);
-      res.status(500).json({ message: 'Lỗi lấy chi tiết thông báo' });
+      res.status(500).json({ message: 'LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i lÃƒÂ¡Ã‚ÂºÃ‚Â¥y chi tiÃƒÂ¡Ã‚ÂºÃ‚Â¿t thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o' });
     }
   },
 
-  // --- Admin: xóa ---
+  // --- Admin: xÃƒÆ’Ã‚Â³a ---
   deleteNotification: async (req, res) => {
     const t = await sequelize.transaction();
     try {
@@ -415,14 +454,14 @@ const notificationController = {
         transaction: t,
       });
       await t.commit();
-      res.json({ message: 'Đã xoá thông báo' });
+      res.json({ message: 'Ãƒâ€žÃ‚ÂÃƒÆ’Ã‚Â£ xoÃƒÆ’Ã‚Â¡ thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o' });
     } catch (err) {
       await t.rollback();
-      res.status(500).json({ message: 'Lỗi khi xoá' });
+      res.status(500).json({ message: 'LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i khi xoÃƒÆ’Ã‚Â¡' });
     }
   },
 
-  // --- Nhân viên: chuông ---
+  // --- NhÃƒÆ’Ã‚Â¢n viÃƒÆ’Ã‚Âªn: chuÃƒÆ’Ã‚Â´ng ---
   getMyBellNotifications: async (req, res) => {
     try {
       const { userId } = req.params;
@@ -439,7 +478,7 @@ const notificationController = {
       res.status(200).json(results);
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: 'Lỗi lấy chuông thông báo' });
+      res.status(500).json({ message: 'LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i lÃƒÂ¡Ã‚ÂºÃ‚Â¥y chuÃƒÆ’Ã‚Â´ng thÃƒÆ’Ã‚Â´ng bÃƒÆ’Ã‚Â¡o' });
     }
   },
 
@@ -455,10 +494,10 @@ const notificationController = {
       await sequelize.query(query, {
         replacements: { notiId, userId },
       });
-      res.status(200).json({ message: 'Đã cập nhật trạng thái đọc thành công' });
+      res.status(200).json({ message: 'Ãƒâ€žÃ‚ÂÃƒÆ’Ã‚Â£ cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t trÃƒÂ¡Ã‚ÂºÃ‚Â¡ng thÃƒÆ’Ã‚Â¡i Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã‚Âc thÃƒÆ’Ã‚Â nh cÃƒÆ’Ã‚Â´ng' });
     } catch (error) {
-      console.error('=== LỖI UPDATE ĐÃ ĐỌC ===', error);
-      res.status(500).json({ message: 'Lỗi cập nhật', error: error.message });
+      console.error('=== LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€œI UPDATE Ãƒâ€žÃ‚ÂÃƒÆ’Ã†â€™ Ãƒâ€žÃ‚ÂÃƒÂ¡Ã‚Â»Ã…â€™C ===', error);
+      res.status(500).json({ message: 'LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t', error: error.message });
     }
   },
 
@@ -471,12 +510,16 @@ const notificationController = {
       `,
         { replacements: { userId } }
       );
-      res.status(200).json({ message: 'Đã đọc tất cả' });
+      res.status(200).json({ message: 'Ãƒâ€žÃ‚ÂÃƒÆ’Ã‚Â£ Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã‚Âc tÃƒÂ¡Ã‚ÂºÃ‚Â¥t cÃƒÂ¡Ã‚ÂºÃ‚Â£' });
     } catch (error) {
       console.error(error);
-      res.status(500).json({ message: 'Lỗi' });
+      res.status(500).json({ message: 'LÃƒÂ¡Ã‚Â»Ã¢â‚¬â€i' });
     }
   },
 };
 
 module.exports = notificationController;
+
+
+
+
