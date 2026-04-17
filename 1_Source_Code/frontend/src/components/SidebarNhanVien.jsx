@@ -31,7 +31,9 @@ const SidebarNhanVien = () => {
       icon: <FileText size={20} />,
       children: [
         { path: '/NhanVien/requests/leave', label: 'Đơn nghỉ phép' },
-        { path: '/NhanVien/requests/overtime', label: 'Đơn tăng ca' }
+        { path: '/NhanVien/requests/overtime', label: 'Đơn tăng ca' },
+        { path: '/NhanVien/requests/ae_request', label: 'Đơn giải trình' }
+        
       ]
     },
     // Đã xóa menu "Hồ sơ cá nhân" vì đã tích hợp trên Header dùng chung cho mọi Role
