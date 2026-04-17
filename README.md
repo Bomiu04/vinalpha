@@ -7,12 +7,12 @@
 
 ## 📋 Thông tin dự án
 
-| Thông tin | Chi tiết |
-|---|---|
-| **Tên đề tài** | Xây dựng Website quản lý nhân sự tích hợp chấm công theo thời gian thực (GPS Tracking) |
+| Thông tin          | Chi tiết                                                                                         |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| **Tên đề tài**     | Xây dựng Website quản lý nhân sự tích hợp chấm công theo thời gian thực (GPS Tracking)           |
 | **Nhóm sinh viên** | Châu Ngọc Hội (L), Lê Trường Giang, Trần Trọng Khang, Trần Nguyễn Quốc Lĩnh, Nguyễn Đặng Yến Nhi |
-| **GVHD** | Th.S Trần Thị Thanh Lan |
-| **Thời gian** | 12/03/2026 – 13/05/2026 |
+| **GVHD**           | Th.S Trần Thị Thanh Lan                                                                          |
+| **Thời gian**      | 12/03/2026 – 13/05/2026                                                                          |
 
 ---
 
@@ -47,11 +47,11 @@ QuanLyNhanSu_GPS/
 └── README.md
 ```
 
-| Thành phần | Công nghệ chính | Mô tả |
-|---|---|---|
-| **Backend** | Node.js, Express, PostgreSQL | REST API, xử lý Logic, Socket.io, JWT |
-| **Frontend** | ReactJS, Tailwind, Lucide | Giao diện quản trị, Dashboard, Quản lý User |
-| **Database** | Supabase (PostgreSQL) | Lưu trữ quan hệ, Pgcrypto mã hóa |
+| Thành phần   | Công nghệ chính              | Mô tả                                       |
+| ------------ | ---------------------------- | ------------------------------------------- |
+| **Backend**  | Node.js, Express, PostgreSQL | REST API, xử lý Logic, Socket.io, JWT       |
+| **Frontend** | ReactJS, Tailwind, Lucide    | Giao diện quản trị, Dashboard, Quản lý User |
+| **Database** | Supabase (PostgreSQL)        | Lưu trữ quan hệ, Pgcrypto mã hóa            |
 
 ---
 
@@ -77,6 +77,14 @@ QuanLyNhanSu_GPS/
 ---
 
 ## ⚙️ Cài đặt & Chạy
+
+### Website được deploy tại: https://hrmgpsattendance.web.app/login
+
+### Tài khoản test:
+
+- Email: [EMAIL_ADDRESS]
+- Password: [PASSWORD]
+  sẽ được cập nhật sau
 
 ### Yêu cầu
 
@@ -117,24 +125,24 @@ npm run dev
 
 Dựa trên cấu trúc Database, hệ thống phân định rõ **4 vai trò chính**:
 
-| Vai trò | Quyền hạn |
-|---|---|
-| **ADMIN** | Quản trị toàn bộ hệ thống, cấp tài khoản, cấu hình chi nhánh. |
+| Vai trò      | Quyền hạn                                                     |
+| ------------ | ------------------------------------------------------------- |
+| **ADMIN**    | Quản trị toàn bộ hệ thống, cấp tài khoản, cấu hình chi nhánh. |
 | **DIRECTOR** | Xem báo cáo tổng thể công ty, quỹ lương và phê duyệt cấp cao. |
-| **MANAGER** | Quản lý nhân sự trực thuộc phòng ban, duyệt đơn từ. |
-| **EMPLOYEE** | Chấm công GPS, gửi đơn từ, xem bảng lương cá nhân. |
+| **MANAGER**  | Quản lý nhân sự trực thuộc phòng ban, duyệt đơn từ.           |
+| **EMPLOYEE** | Chấm công GPS, gửi đơn từ, xem bảng lương cá nhân.            |
 
 ---
 
 ## 👤 Nhóm tác giả
 
-| Họ và tên | MSSV | Vai trò |
-|---|---|---|
-| **Châu Ngọc Hội** | 28211146177 | Nhóm trưởng |
-| **Lê Trường Giang** | 28211301705 | Thành viên |
-| **Trần Trọng Khang** | 28211126425 | Thành viên |
-| **Trần Nguyễn Quốc Lĩnh** | 28211126424 | Thành viên |
-| **Nguyễn Đặng Yến Nhi** | 28201152319 | Thành viên |
+| Họ và tên                 | MSSV        | Vai trò     |
+| ------------------------- | ----------- | ----------- |
+| **Châu Ngọc Hội**         | 28211146177 | Nhóm trưởng |
+| **Lê Trường Giang**       | 28211301705 | Thành viên  |
+| **Trần Trọng Khang**      | 28211126425 | Thành viên  |
+| **Trần Nguyễn Quốc Lĩnh** | 28211126424 | Thành viên  |
+| **Nguyễn Đặng Yến Nhi**   | 28201152319 | Thành viên  |
 
 ---
 
