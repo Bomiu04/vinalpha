@@ -184,8 +184,11 @@ const RequestsStats = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState('');
   const [usingSeedData, setUsingSeedData] = useState(false);
-  const [showAllRequests, setShowAllRequests] = useState(false);
   const [selectedRequestIds, setSelectedRequestIds] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [requestTypeFilter, setRequestTypeFilter] = useState('all');
+  const [expandedRequestIds, setExpandedRequestIds] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const user = getStoredUser();
   const managerId = user?.employee_id || user?.id || '';
@@ -233,9 +236,16 @@ const RequestsStats = () => {
   }, [selectedMonth]);
 
   useEffect(() => {
-    setShowAllRequests(false);
     setSelectedRequestIds([]);
+    setExpandedRequestIds([]);
+    setCurrentPage(1);
   }, [selectedMonth]);
+
+  useEffect(() => {
+    setSelectedRequestIds([]);
+    setExpandedRequestIds([]);
+    setCurrentPage(1);
+  }, [statusFilter, requestTypeFilter]);
 
   const handleApprovalAction = async (requestType, requestId, action) => {
     if (usingSeedData) return;
@@ -321,10 +331,46 @@ const RequestsStats = () => {
     }
   };
 
-  const rowsForTable = useMemo(() => {
+  const filteredRequests = useMemo(() => {
     const items = Array.isArray(data?.monthlyRequests) ? data.monthlyRequests : [];
-    return showAllRequests ? items : items.slice(0, 6);
-  }, [data?.monthlyRequests, showAllRequests]);
+    return items.filter((item) => {
+      const matchesStatus = statusFilter === 'all' ? true : item.status === statusFilter;
+      const normalizedType = item.type === 'overtime' ? 'overtime' : item.subtype || 'other';
+      const matchesType = requestTypeFilter === 'all' ? true : normalizedType === requestTypeFilter;
+      return matchesStatus && matchesType;
+    });
+  }, [data?.monthlyRequests, statusFilter, requestTypeFilter]);
+
+  const PAGE_SIZE = 6;
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    if (currentPage !== safePage) {
+      setCurrentPage(safePage);
+    }
+  }, [currentPage, safePage]);
+
+  const rowsForTable = useMemo(() => {
+    const start = (safePage - 1) * PAGE_SIZE;
+    return filteredRequests.slice(start, start + PAGE_SIZE);
+  }, [filteredRequests, safePage]);
+
+  const allVisibleNotesExpanded =
+    rowsForTable.length > 0 &&
+    rowsForTable.every((item) => expandedRequestIds.includes(item.id));
+
+  const toggleVisibleNotes = () => {
+    const visibleIds = rowsForTable.map((item) => item.id);
+    if (visibleIds.length === 0) return;
+
+    if (allVisibleNotesExpanded) {
+      setExpandedRequestIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+      return;
+    }
+
+    setExpandedRequestIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+  };
 
   if (!data && error) {
     return <div style={{ padding: 24 }}>{error}</div>;
@@ -519,12 +565,35 @@ const RequestsStats = () => {
             </div>
 
             <div style={toolbarActions}>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={filterSelect}
+              >
+                <option value="all">Tất cả trạng thái</option>
+                <option value="pending">Chưa duyệt</option>
+                <option value="approved">Đã duyệt</option>
+                <option value="rejected">Từ chối</option>
+              </select>
+              <select
+                value={requestTypeFilter}
+                onChange={(e) => setRequestTypeFilter(e.target.value)}
+                style={filterSelect}
+              >
+                <option value="all">Tất cả loại yêu cầu</option>
+                <option value="annual">Nghỉ phép năm</option>
+                <option value="sick">Nghỉ ốm</option>
+                <option value="unpaid">Nghỉ không lương</option>
+                <option value="maternity">Thai sản</option>
+                <option value="bereavement">Nghỉ việc riêng</option>
+                <option value="overtime">Tăng ca</option>
+              </select>
               <button
                 type="button"
                 style={secondaryToolbarButton}
-                onClick={() => setShowAllRequests((prev) => !prev)}
+                onClick={toggleVisibleNotes}
               >
-                {showAllRequests ? 'Thu gọn' : 'Xem tất cả đơn'}
+                {allVisibleNotesExpanded ? 'Thu gọn ghi chú' : 'Xem ghi chú'}
               </button>
               <button
                 type="button"
@@ -559,7 +628,7 @@ const RequestsStats = () => {
             </div>
 
             {rowsForTable.length === 0 ? (
-              <div style={emptyListState}>Không có đơn trong tháng này.</div>
+              <div style={emptyListState}>Không có đơn phù hợp với bộ lọc hiện tại.</div>
             ) : (
               rowsForTable.map((item, index) => {
                 const isPending = item.status === 'pending';
@@ -601,7 +670,9 @@ const RequestsStats = () => {
                         <span style={{ ...typeTag, ...getRequestTypeStyle(item) }}>
                           {formatRequestType(item)}
                         </span>
-                        <span style={subText}>{item.reason || 'Không có ghi chú'}</span>
+                        {expandedRequestIds.includes(item.id) ? (
+                          <span style={subText}>{item.reason || 'Không có ghi chú'}</span>
+                        ) : null}
                       </div>
                     </div>
 
@@ -692,6 +763,36 @@ const RequestsStats = () => {
                 );
               })
             )}
+
+            {filteredRequests.length > PAGE_SIZE ? (
+              <div style={paginationBar}>
+                <button
+                  type="button"
+                  style={{
+                    ...pageButton,
+                    ...(safePage === 1 ? disabledPageButton : {})
+                  }}
+                  disabled={safePage === 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                >
+                  Trước
+                </button>
+                <span style={pageInfo}>
+                  Trang {safePage}/{totalPages}
+                </span>
+                <button
+                  type="button"
+                  style={{
+                    ...pageButton,
+                    ...(safePage === totalPages ? disabledPageButton : {})
+                  }}
+                  disabled={safePage === totalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                >
+                  Sau
+                </button>
+              </div>
+            ) : null}
           </div>
         </section>
       </div>
@@ -721,19 +822,19 @@ const heroPanel = {
   gap: '18px',
   alignItems: 'flex-start',
   flexWrap: 'wrap',
-  padding: '24px',
-  borderRadius: '24px',
+  padding: '18px 20px',
+  borderRadius: '20px',
   background: 'linear-gradient(135deg, #f8fdff 0%, #f7f7ff 100%)',
   border: '1px solid #e6eef8',
-  marginBottom: '20px'
+  marginBottom: '16px'
 };
 
 const heroContent = { flex: '1 1 420px' };
-const titleRow = { display: 'flex', alignItems: 'flex-start', gap: '14px' };
+const titleRow = { display: 'flex', alignItems: 'flex-start', gap: '12px' };
 const titleIconWrap = {
-  width: '42px',
-  height: '42px',
-  borderRadius: '14px',
+  width: '36px',
+  height: '36px',
+  borderRadius: '12px',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -741,11 +842,11 @@ const titleIconWrap = {
   flexShrink: 0
 };
 
-const title = { margin: 0, fontSize: '32px', lineHeight: 1.15, fontWeight: 800, color: '#0f172a' };
-const subtitle = { margin: '8px 0 0', fontSize: '14px', color: '#64748b', maxWidth: '680px' };
+const title = { margin: 0, fontSize: '24px', lineHeight: 1.2, fontWeight: 800, color: '#0f172a' };
+const subtitle = { margin: '6px 0 0', fontSize: '13px', color: '#64748b', maxWidth: '620px' };
 const monthBox = { display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', borderRadius: '16px', background: '#ffffff', border: '1px solid #e2e8f0' };
-const monthButton = { width: '38px', height: '38px', border: '1px solid #e2e8f0', borderRadius: '12px', background: '#ffffff', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const monthLabel = { minWidth: '170px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', fontWeight: 700, color: '#334155' };
+const monthButton = { width: '34px', height: '34px', border: '1px solid #e2e8f0', borderRadius: '10px', background: '#ffffff', color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' };
+const monthLabel = { minWidth: '156px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#334155' };
 const errorBox = { marginBottom: '16px', padding: '12px 14px', borderRadius: '14px', background: '#fef2f2', color: '#dc2626', fontSize: '13px' };
 const successBox = { marginBottom: '16px', padding: '12px 14px', borderRadius: '14px', background: '#ecfdf5', color: '#059669', fontSize: '13px' };
 const overviewGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' };
@@ -780,22 +881,33 @@ const infoBox = { marginTop: '14px', padding: '14px', borderRadius: '16px', back
 const tableCard = { borderRadius: '24px', border: '1px solid #edf2f7', background: '#ffffff', boxShadow: '0 14px 32px rgba(15, 23, 42, 0.05)', overflow: 'hidden' };
 const tableToolbar = { padding: '22px 22px 18px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '14px', flexWrap: 'wrap' };
 const toolbarActions = { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' };
+const filterSelect = {
+  border: '1px solid #d9e3ef',
+  background: '#ffffff',
+  color: '#475569',
+  padding: '10px 12px',
+  borderRadius: '12px',
+  fontSize: '12px',
+  fontWeight: 600,
+  cursor: 'pointer',
+  outline: 'none'
+};
 const secondaryToolbarButton = { border: '1px solid #d9e3ef', background: '#ffffff', color: '#475569', padding: '10px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' };
 const primaryToolbarButton = { border: '1px solid #38bdf8', background: '#38bdf8', color: '#ffffff', padding: '10px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: 700 };
 const listWrap = { padding: '16px 18px 20px', background: 'linear-gradient(180deg, #ffffff 0%, #fbfdff 100%)', overflowX: 'auto', overflowY: 'hidden' };
-const listGridTemplate = '38px minmax(180px, 1.6fr) minmax(170px, 1.25fr) minmax(135px, 0.95fr) minmax(150px, 1fr) minmax(180px, 0.95fr)';
-const listHeaderRow = {
+const listGridTemplate = 
+'42px 2fr 1.5fr 1.2fr 1.2fr 1.4fr';const listHeaderRow = {
   display: 'grid',
   gridTemplateColumns: listGridTemplate,
   gap: '12px',
   alignItems: 'center',
-  padding: '8px 12px 14px',
-  borderBottom: '1px solid #edf2f7',
+  padding: '10px 14px 16px',
+  borderBottom: '1px solid #e2e8f0',
   color: '#64748b',
-  fontSize: '12px',
+  fontSize: '11px',
   textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  fontWeight: 600,
+  letterSpacing: '0.08em',
+  fontWeight: 700,
   minWidth: '920px'
 };
 const listHeadCell = { whiteSpace: 'nowrap' };
@@ -806,84 +918,96 @@ const requestRow = (isPending) => ({
   gap: '12px',
   alignItems: 'center',
   marginTop: '10px',
-  padding: '14px 12px',
-  border: '1px solid #edf2f7',
-  borderRadius: '18px',
+  padding: '16px 14px',
+  border: '1px solid #e2e8f0',
+  borderRadius: '16px',
   minWidth: '920px',
-  background: isPending ? 'linear-gradient(180deg, #fffef8 0%, #ffffff 100%)' : '#ffffff',
-  boxShadow: '0 8px 18px rgba(15, 23, 42, 0.03)',
-  transition: 'all 0.2s ease'
+  background: isPending ? '#fffef7' : '#ffffff',
+  boxShadow: '0 6px 14px rgba(0,0,0,0.04)',
+  transition: 'all 0.2s ease',
+  cursor: 'pointer'
 });
 const requestCell = { display: 'flex', alignItems: 'stretch', minWidth: 0 };
 const checkCell = { display: 'flex', alignItems: 'center', justifyContent: 'center' };
 const emptyListState = { minWidth: '920px', padding: '28px 20px', textAlign: 'center', color: '#64748b', fontSize: '14px' };
+const paginationBar = { minWidth: '920px', marginTop: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', paddingTop: '6px', borderTop: '1px solid #eef2f7' };
+const pageButton = { border: '1px solid #d9e3ef', background: '#ffffff', color: '#475569', padding: '8px 14px', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', minWidth: '74px' };
+const disabledPageButton = { opacity: 0.5, cursor: 'not-allowed' };
+const pageInfo = { fontSize: '13px', fontWeight: 700, color: '#64748b', minWidth: '88px', textAlign: 'center' };
 const employeeCard = { display: 'flex', alignItems: 'center', gap: '10px', minHeight: '64px' };
 const employeeInfo = { minWidth: 0, display: 'grid', gap: '4px' };
 const avatar = { width: '34px', height: '34px', borderRadius: '999px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, flexShrink: 0, fontSize: '12px' };
 const employeeName = {
-  fontSize: '13px',
-  fontWeight: 600,
+  fontSize: '14px',
+  fontWeight: 700,
   color: '#0f172a'
 };
 const employeeMeta = {
-  fontSize: '11px',
-  color: '#94a3b8'
+  fontSize: '12px',
+  color: '#64748b'
 };
 const typeCol = { display: 'grid', gap: '8px', alignContent: 'center', minHeight: '64px' };
 const waitCol = { display: 'grid', gap: '6px', alignContent: 'center', minHeight: '64px' };
-const waitPrimary = { fontSize: '13px', color: '#0f172a', fontWeight: 600 };
-const subText = {
-  fontSize: '12px',
-  color: '#94a3b8',
-  lineHeight: 1.4
+const waitPrimary = {
+  fontSize: '14px',
+  fontWeight: 700
+};const subText = {
+  fontSize: '13px',
+  color: '#475569',
+  lineHeight: 1.5,
+  background: '#f8fafc',
+  padding: '6px 10px',
+  borderRadius: '8px',
+  border: '1px solid #eef2f7',
+  display: '-webkit-box',
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden'
 };
 const typeTag = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  padding: '6px 12px',
+  padding: '6px 14px',
   borderRadius: '999px',
-  fontSize: '12px',
-  fontWeight: 600,
-  width: 'fit-content',
-  border: '1px solid transparent'
+  fontSize: '11px',
+  fontWeight: 700,
+  border: '1px solid rgba(0,0,0,0.05)'
 };
 const approverBlock = { display: 'grid', alignContent: 'center', minHeight: '64px' };
-const approverName = { fontSize: '13px', fontWeight: 700, color: '#334155', marginBottom: '6px' };
-const actionsPanel = { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', width: '100%', minHeight: '64px', flexWrap: 'wrap' };
+const approverName = {
+  fontSize: '13px',
+  fontWeight: 600,
+  color: '#334155'
+};const actionsPanel = { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', width: '100%', minHeight: '64px', flexWrap: 'wrap' };
 const approveButton = {
-  border: '1px solid #bbf7d0',
-  background: '#f0fdf4',
-  color: '#15803d',
-  padding: '8px 12px',
-  borderRadius: '10px',
+  border: 'none',
+  background: '#22c55e',
+  color: '#fff',
+  padding: '8px 14px',
+  borderRadius: '8px',
   fontSize: '12px',
   fontWeight: 700,
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px'
+  cursor: 'pointer'
 };
 
 const rejectButton = {
-  border: '1px solid #fecdd3',
-  background: '#fff1f2',
-  color: '#e11d48',
-  padding: '8px 12px',
-  borderRadius: '10px',
+  border: 'none',
+  background: '#ef4444',
+  color: '#fff',
+  padding: '8px 14px',
+  borderRadius: '8px',
   fontSize: '12px',
   fontWeight: 700,
-  cursor: 'pointer',
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '6px'
+  cursor: 'pointer'
 };
 const disabledActionButton = {
-  borderColor: '#e2e8f0',
-  background: '#f8fafc',
-  color: '#94a3b8',
+  background: '#e5e7eb',
+  color: '#9ca3af',
   cursor: 'not-allowed'
 };
 const actionButtonLoading = { opacity: 0.75, cursor: 'wait' };
 const spinnerIcon = { animation: 'spin 1s linear infinite' };
-const doneText = { fontSize: '12px', fontWeight: 700, textAlign: 'right', padding: '7px 12px', borderRadius: '999px' };
-const pendingInfoTag = { background: '#fff7ed', color: '#c2410c' };
+const doneText = {
+  fontSize: '11px',
+  fontWeight: 700,
+  padding: '6px 12px',
+  borderRadius: '999px'
+};const pendingInfoTag = { background: '#fff7ed', color: '#c2410c' };

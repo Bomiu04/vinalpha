@@ -665,6 +665,93 @@ const getApprovalRequests = async (req, res) => {
   }
 };
 
+const LEAVE_TYPE_LABELS = {
+  annual: 'Nghỉ phép năm',
+  sick: 'Nghỉ ốm',
+  unpaid: 'Nghỉ không lương',
+  ot: 'Nghỉ bù',
+  maternity: 'Nghỉ thai sản',
+  bereavement: 'Nghỉ việc riêng'
+};
+
+const formatDateTimeVi = (value) => {
+  if (!value) return '';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return String(value);
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(parsed);
+};
+
+const createPersonalNotification = async ({ transaction, employeeId, title, desc, content, notificationType = 'info' }) => {
+  const rows = await db.query(
+    `
+    INSERT INTO notification (
+      title,
+      content,
+      notification_type,
+      target,
+      "desc",
+      status,
+      target_employee_id,
+      created_at
+    )
+    VALUES (:title, :content, :notificationType, 'Cá nhân', :desc, 'Đã gửi', :employeeId, NOW())
+    RETURNING id
+    `,
+    {
+      replacements: { title, content, notificationType, desc: desc || '', employeeId },
+      type: db.QueryTypes.SELECT,
+      transaction
+    }
+  );
+
+  const notificationId = rows?.[0]?.id;
+  if (!notificationId) {
+    throw new Error('Không thể tạo thông báo.');
+  }
+
+  await db.query(
+    `INSERT INTO notification_recipient (notification_id, employee_id) VALUES (:notificationId, :employeeId)`,
+    {
+      replacements: { notificationId, employeeId },
+      transaction
+    }
+  );
+};
+
+const createRequestApprovalNotification = async ({ transaction, type, requestRow, isApproved }) => {
+  if (!requestRow?.employee_id) return;
+
+  const isLeave = type === 'leave';
+  const requestLabel = isLeave
+    ? LEAVE_TYPE_LABELS[requestRow.leave_type] || 'Đơn nghỉ phép'
+    : 'Đơn tăng ca';
+
+  const title = isApproved ? `${requestLabel} đã được duyệt` : `${requestLabel} bị từ chối`;
+  const desc = isApproved
+    ? 'Yêu cầu của bạn đã được quản lý phê duyệt.'
+    : 'Yêu cầu của bạn đã bị quản lý từ chối.';
+
+  const timeLabel = isLeave
+    ? `${formatDateTimeVi(requestRow.start_datetime)} - ${formatDateTimeVi(requestRow.end_datetime)}`
+    : `${formatDateTimeVi(requestRow.ot_date)} ${requestRow.start_time || ''}-${requestRow.end_time || ''}`.trim();
+
+  const content = isApproved
+    ? `${requestLabel} của bạn cho thời gian ${timeLabel} đã được phê duyệt. Lý do: ${requestRow.reason || 'Không có'}.`
+    : `${requestLabel} của bạn cho thời gian ${timeLabel} đã bị từ chối. Lý do: ${requestRow.reason || 'Không có'}.`;
+
+  await createPersonalNotification({
+    transaction,
+    employeeId: requestRow.employee_id,
+    title,
+    desc,
+    content,
+    notificationType: isApproved ? 'info' : 'warning'
+  });
+};
+
 const updateApprovalStatus = async (req, res) => {
   try {
     const { type, id } = req.params;
@@ -679,6 +766,7 @@ const updateApprovalStatus = async (req, res) => {
     }
 
     let query = '';
+    let detailQuery = '';
 
     if (type === 'leave') {
       query = `
@@ -689,6 +777,12 @@ const updateApprovalStatus = async (req, res) => {
           AND approver_id = :approver_id
           AND status = 'pending'
         RETURNING *;
+      `;
+      detailQuery = `
+        SELECT id, employee_id, leave_type, start_datetime, end_datetime, reason
+        FROM leave_request
+        WHERE id = :id
+        LIMIT 1
       `;
     }
 
@@ -702,26 +796,62 @@ const updateApprovalStatus = async (req, res) => {
           AND status = 'pending'
         RETURNING *;
       `;
+      detailQuery = `
+        SELECT id, employee_id, ot_date, start_time, end_time, reason
+        FROM overtime_request
+        WHERE id = :id
+        LIMIT 1
+      `;
     }
 
     else {
       return res.status(400).json({ message: 'Type không hợp lệ' });
     }
 
-    const [result] = await db.query(query, {
-      replacements: { id, status, approver_id: approverId }
-    });
+    const transaction = await db.transaction();
 
-    if (!result?.[0]) {
-      return res.status(403).json({
-        message: 'Bạn không có quyền xử lý đơn này hoặc đơn đã được cập nhật trước đó'
+    try {
+      const detailRows = await db.query(detailQuery, {
+        replacements: { id },
+        type: db.QueryTypes.SELECT,
+        transaction
       });
-    }
 
-    res.json({
-      message: 'Cập nhật thành công',
-      data: result[0]
-    });
+      const requestRow = detailRows?.[0];
+      if (!requestRow) {
+        await transaction.rollback();
+        return res.status(404).json({ message: 'Không tìm thấy đơn cần xử lý' });
+      }
+
+      const [result] = await db.query(query, {
+        replacements: { id, status, approver_id: approverId },
+        transaction
+      });
+
+      if (!result?.[0]) {
+        await transaction.rollback();
+        return res.status(403).json({
+          message: 'Bạn không có quyền xử lý đơn này hoặc đơn đã được cập nhật trước đó'
+        });
+      }
+
+      await createRequestApprovalNotification({
+        transaction,
+        type,
+        requestRow,
+        isApproved: status === 'approved'
+      });
+
+      await transaction.commit();
+
+      res.json({
+        message: 'Cập nhật thành công',
+        data: result[0]
+      });
+    } catch (innerError) {
+      await transaction.rollback();
+      throw innerError;
+    }
 
   } catch (error) {
     console.error(" updateApprovalStatus:", error);
