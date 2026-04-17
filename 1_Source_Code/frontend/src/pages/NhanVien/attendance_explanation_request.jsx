@@ -65,7 +65,7 @@ useEffect(() => {
 }, [user?.id]);
 
 const handleSubmit = async () => {
-  if (!form.date && !approverId && !form.type && !form.checkin &&!form.checkout && !form.reason.trim()) {
+  if (!form.date && !approverId && !form.type && !form.checkin &&!form.checkout && !(form.reason || "").trim()) {
     setShowConfirmSubmit(false);
     setNotification({ message: "Vui lòng nhập thông tin!", type: "error" });
     setTimeout(() => setNotification({ message: "", type: "" }), 3000);
@@ -142,10 +142,19 @@ if (checkinMin < minCheckin) {
   formData.append("proposed_check_out", form.checkout);
   formData.append("reason", form.reason);
   formData.append("approverId", approverId);
+  const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+  const file = selectedFile;
 
-  if (fileRef.current?.files[0]) {
-    formData.append("file", fileRef.current.files[0]);
-  }
+if (file && file.size > MAX_SIZE) {
+  setShowConfirmSubmit(false);
+  setNotification({
+    message: "File không được vượt quá 10MB!",
+    type: "error",
+  });
+  setTimeout(() => setNotification({ message: "", type: "" }), 3000);
+  return;
+}
+  if (file) formData.append("file", file);
 
   try {
     await employeeService.createExplanationRequest(formData);
@@ -416,9 +425,46 @@ const filteredRequests = filterMonth
                                                     hidden
                                                     ref={fileRef}
                                                     onChange={(e) => {
-                                                    const file = e.target.files[0];
-                                                    if (file) setSelectedFile(file);
-                                                    }}
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const MAX_SIZE = 10 * 1024 * 1024;
+
+  const allowedTypes = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/png",
+    "image/jpeg",
+  ];
+
+  const allowedExt = /\.(pdf|doc|docx|png|jpg|jpeg)$/i;
+
+  const isValid =
+    allowedTypes.includes(file.type) || allowedExt.test(file.name);
+
+  if (!isValid) {
+    setNotification({
+      message: "Chỉ chấp nhận PDF, DOC, DOCX, PNG, JPG!",
+      type: "error",
+    });
+    e.target.value = "";
+    setSelectedFile(null);
+    return;
+  }
+
+  if (file.size > MAX_SIZE) {
+    setNotification({
+      message: "File không được vượt quá 10MB!",
+      type: "error",
+    });
+    e.target.value = "";
+    setSelectedFile(null);
+    return;
+  }
+
+  setSelectedFile(file);
+}}
                                                 />
                                             </label>
                             </div>

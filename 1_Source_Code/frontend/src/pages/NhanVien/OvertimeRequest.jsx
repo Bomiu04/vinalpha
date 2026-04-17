@@ -88,7 +88,7 @@ const filteredRequests = filterMonth
 
 const handleSubmit = async () => {
   // 1. Validate đầy đủ
-  if (!form.ot_date && !approverId && !form.start_time &&!form.end_time && !form.reason.trim()) {
+  if (!form.ot_date && !approverId && !form.start_time &&!form.end_time && !(form.reason || "").trim()) {
     setShowConfirmSubmit(false);
     setNotification({ message: "Vui lòng nhập thông tin!", type: "error" });
     setTimeout(() => setNotification({ message: "", type: "" }), 3000);
