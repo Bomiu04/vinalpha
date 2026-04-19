@@ -21,7 +21,7 @@ const Requests = () => {
   const [requests, setRequests] = useState([]);
   console.log("REQUESTS:", requests);
   const [form, setForm] = useState({
-    type: "annual",
+    type: "",
     startDate: "",
     endDate: "",
     reason: "",
@@ -239,7 +239,7 @@ const calculateTotalDays = (start, end) => {
   // ----------------- Submit -----------------
 
   const submitRequest = async () => {
-  if (!form.type && !approverId && !form.startDate &&!form.endDate && !form.reason.trim()) {
+  if (!form.type && !approverId && !form.startDate &&!form.endDate && !(form.reason || "").trim()) {
     setShowConfirmSubmit(false);
     setNotification({ message: "Vui lòng nhập thông tin!", type: "error" });
     setTimeout(() => setNotification({ message: "", type: "" }), 3000);
@@ -317,6 +317,20 @@ if (diffDays > 30) {
   setTimeout(() => setNotification({ message: "", type: "" }), 3000);
   return;
 }
+  const file = selectedFile;
+  const MAX_SIZE = 10 * 1024 * 1024;
+
+  
+
+if (file) {
+  if (file.size > MAX_SIZE) {
+    setNotification({
+      message: "File không được vượt quá 10MB!",
+      type: "error",
+    });
+    return;
+  }
+}
 
   const payload = new FormData();
   payload.append("userId", user.id);
@@ -326,9 +340,8 @@ if (diffDays > 30) {
   payload.append("reason", form.reason);
   payload.append("approverId", approverId);
 
-  if (fileRef.current?.files[0]) {
-    payload.append("attachment", fileRef.current.files[0]);
-  }
+
+  if (file) payload.append("attachment", file);
 
   try {
     await employeeService.createLeaveRequest(payload);
@@ -376,53 +389,7 @@ const handleCancelConfirm = () => {
   setShowConfirmCancel(false);
 };
 
-  const handleSubmit = async (e) => {
-  e.preventDefault();
 
-  if (!approverId) { alert("Chọn người kiểm duyệt!"); return; }
-
-
-  
-
-  const payload = new FormData();
-  payload.append("userId", user.id);
-  payload.append("leave_type", form.type);
-  payload.append("start_datetime", form.startDate);
-  payload.append("end_datetime", form.endDate);
-  payload.append("reason", form.reason);
-  payload.append("approverId", approverId);
-
-  const fileInput = document.getElementById("file-upload");
-  if (fileRef.current && fileRef.current.files.length > 0) {
-  payload.append("attachment", fileRef.current.files[0]);
-  }
-
-  try {
-        await employeeService.createLeaveRequest(payload);
-
-        // reload lại danh sách
-        const res = await employeeService.getLeaveRequests(user.id);
-        const data = res?.data || res || [];
-
-        setRequests(data);
-        setRecentRequests(data.slice(0, 3));
-
-        // reset form
-        handleCancel();
-
-        setNotification({
-          message: "Gửi đơn thành công!",
-          type: "success",
-        });
-        setTimeout(() => setNotification({ message: "", type: "" }), 3000);
-        setShowConfirmSubmit(false);
-
-      } catch (err) {
-        console.error(err);
-        setNotification({ message: "Lỗi tạo đơn!", type: "error" });
-        setTimeout(() => setNotification({ message: "", type: "" }), 3000);
-      }
-};
 
   const calculateDays = () => {
   if (!form.startDate || !form.endDate) return 0;
@@ -648,15 +615,53 @@ const diffTime = end - start;
                 )}
 
                 <input
-                  ref={fileRef}
-                  id="file-upload"
-                  type="file"
-                  hidden
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) setSelectedFile(file);
-                  }}
-                />
+  ref={fileRef}
+  id="file-upload"
+  type="file"
+  hidden
+  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+  onChange={(e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  const MAX_SIZE = 10 * 1024 * 1024;
+
+  const allowedTypes = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "image/png",
+    "image/jpeg",
+  ];
+
+  const allowedExt = /\.(pdf|doc|docx|png|jpg|jpeg)$/i;
+
+  const isValid =
+    allowedTypes.includes(file.type) || allowedExt.test(file.name);
+
+  if (!isValid) {
+    setNotification({
+      message: "Chỉ chấp nhận PDF, DOC, DOCX, PNG, JPG!",
+      type: "error",
+    });
+    e.target.value = "";
+    setSelectedFile(null);
+    return;
+  }
+
+  if (file.size > MAX_SIZE) {
+    setNotification({
+      message: "File không được vượt quá 10MB!",
+      type: "error",
+    });
+    e.target.value = "";
+    setSelectedFile(null);
+    return;
+  }
+
+  setSelectedFile(file);
+}}
+/>
               </label>
             </div>
           </div>
