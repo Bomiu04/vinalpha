@@ -90,8 +90,8 @@ const SidebarGiamDoc = () => {
 
       {/* --- MODAL XÁC NHẬN ĐĂNG XUẤT --- */}
       {showLogoutModal && (
-        <div className="modal-overlay">
-          <div className="logout-modal">
+        <div className="modal-overlay" onClick={() => setShowLogoutModal(false)}>
+          <div className="logout-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-icon-container">
                <div className="icon-circle">
                   <QuestionIcon size={40} color="#16a34a" />
