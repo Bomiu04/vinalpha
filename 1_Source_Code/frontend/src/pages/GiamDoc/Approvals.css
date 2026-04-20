@@ -222,13 +222,18 @@
 }
 
 .approval-pill.leave {
-  color: #d97706;
-  background: #ffedd5;
+  color: #0f766e;
+  background: #ccfbf1;
 }
 
 .approval-pill.overtime {
-  color: #7c3aed;
+  color: #6d28d9;
   background: #ede9fe;
+}
+
+.approval-pill.explanation {
+  color: #1d4ed8;
+  background: #dbeafe;
 }
 
 .employee-cell {
@@ -681,6 +686,32 @@
   line-height: 1.65;
   white-space: pre-wrap;
   font-size: 1rem;
+}
+
+.preview-attachment-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: #0f766e;
+  text-decoration: none;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.preview-attachment-link:hover {
+  text-decoration: underline;
+}
+
+.preview-attachment-empty {
+  margin-top: 10px;
+  color: #94a3b8;
+}
+
+.preview-attachment-empty--inline {
+  margin-top: -2px;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .preview-actions {

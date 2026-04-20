@@ -2,8 +2,10 @@ import React, { useState, useEffect } from "react";
 import { Users, Wallet, AlertCircle, RefreshCw } from "lucide-react";
 // eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { directorDashboardService } from "../../services/directorDashboardService";
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [data, setData] = useState({
     summary: { total: 0, present: 0, salary: 0, requests: 0 },
     departments: [],
@@ -40,6 +42,27 @@ export default function Dashboard() {
     late: "Đi trễ",
     early_leave: "Về sớm",
     absent: "Vắng"
+  };
+
+  const goToApproval = (request) => {
+    const type = String(request?.type || '').toLowerCase();
+    // Quy tắc điều hướng:
+    // - payroll -> tab "Bảng lương chờ duyệt"
+    // - leave/overtime/explanation -> tab "Đơn phép"
+    const isPayroll = type === 'payroll';
+    const tab = isPayroll ? 'payroll' : 'leave';
+    // Luôn load đầy đủ dữ liệu trong tab "Đơn phép" (nghỉ phép + tăng ca + giải trình).
+    // Card chỉ dùng để focus đúng đơn cần xử lý, không thu hẹp bộ lọc.
+    const requestType = 'all';
+
+    navigate('/GiamDoc/approvals', {
+      state: {
+        fromDashboard: true,
+        tab,
+        requestType,
+        focusId: request?.id || null
+      }
+    });
   };
 
   return (
@@ -157,9 +180,45 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-4 gap-4">
             {requests.map((r, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="p-4 border rounded-xl flex items-center gap-3 hover:shadow-md transition cursor-pointer">
-                <div className={`p-2 rounded-lg ${r.type === 'leave' ? 'bg-orange-100' : 'bg-blue-100'}`}>
-                  <AlertCircle size={18} className={r.type === 'leave' ? 'text-orange-500' : 'text-blue-500'}/>
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1 }}
+                className="p-4 border rounded-xl flex items-center gap-3 hover:shadow-md transition cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => goToApproval(r)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    goToApproval(r);
+                  }
+                }}
+              >
+                <div
+                  className={`p-2 rounded-lg ${
+                    r.type === 'leave'
+                      ? 'bg-emerald-100'
+                      : r.type === 'overtime'
+                        ? 'bg-violet-100'
+                        : r.type === 'explanation'
+                          ? 'bg-sky-100'
+                          : 'bg-blue-100'
+                  }`}
+                >
+                  <AlertCircle
+                    size={18}
+                    className={
+                      r.type === 'leave'
+                        ? 'text-emerald-600'
+                        : r.type === 'overtime'
+                          ? 'text-violet-600'
+                          : r.type === 'explanation'
+                            ? 'text-sky-600'
+                            : 'text-blue-500'
+                    }
+                  />
                 </div>
                 <div>
                   <p className="font-medium text-sm truncate w-32">{r.name}</p>
@@ -168,6 +227,8 @@ export default function Dashboard() {
                       ? "Nghỉ phép"
                       : r.type === "overtime"
                         ? "Tăng ca"
+                        : r.type === "explanation"
+                          ? "Giải trình"
                       : r.type === "payroll"
                         ? "Bảng lương"
                         : "Yêu cầu khác"}
