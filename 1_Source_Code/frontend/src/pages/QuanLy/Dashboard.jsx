@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   RefreshCw,
   Users,
@@ -635,9 +636,13 @@ export default function DashboardQuanLy() {
         </div>
       </div>
 
-      {composeModalOpen && (
-        <div className="fixed inset-0 z-[110] overflow-y-auto overflow-x-hidden bg-slate-900/40 backdrop-blur-md">
-          <div className="min-h-[100dvh] flex justify-center items-start px-4 py-6 sm:px-6 sm:py-10">
+      {composeModalOpen &&
+        createPortal(
+        <div
+          className="fixed inset-0 z-[9999] flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden bg-slate-900/40 backdrop-blur-md"
+          role="presentation"
+        >
+          <div className="min-h-[100dvh] flex w-full min-w-0 flex-1 justify-center items-start px-4 py-6 sm:px-6 sm:py-10">
             <div className="bg-white w-full max-w-[58rem] rounded-[28px] shadow-2xl border border-slate-100">
               <div className="px-6 sm:px-10 pt-8 pb-4 flex justify-between items-start gap-4 border-b border-slate-100/80">
                 <div className="flex items-start gap-4 min-w-0">
@@ -815,12 +820,13 @@ export default function DashboardQuanLy() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {toast.show && (
         <div
-          className={`fixed right-5 bottom-5 z-[220] max-w-sm rounded-xl px-4 py-3 shadow-lg border text-sm font-semibold transition-all ${
+          className={`fixed right-5 bottom-5 z-[10050] max-w-sm rounded-xl px-4 py-3 shadow-lg border text-sm font-semibold transition-all ${
             toast.kind === "success"
               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
               : "bg-rose-50 text-rose-700 border-rose-200"
