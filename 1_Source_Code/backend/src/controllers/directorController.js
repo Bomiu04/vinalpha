@@ -1258,11 +1258,36 @@ const getDashboardOverview = async (req, res) => {
       FROM attendance WHERE attendance_date = CURRENT_DATE AND status != 'absent'
     `);
 
-    // 3. Tổng yêu cầu đang pending (Nghỉ phép + Tăng ca + Bảng lương chờ duyệt)
+    // 3. Tổng yêu cầu đang pending (các đơn thuộc phạm vi Giám đốc + Bảng lương chờ duyệt)
     const [[{ total_req }]] = await db.query(`
       SELECT (
-        (SELECT COUNT(*)::int FROM leave_request WHERE status = 'pending') +
-        (SELECT COUNT(*)::int FROM overtime_request WHERE status = 'pending') +
+        (SELECT COUNT(*)::int
+          FROM leave_request lr
+          WHERE lr.status = 'pending'
+            AND EXISTS (
+              SELECT 1 FROM employee appr
+              JOIN position ap ON appr.position_id = ap.id
+              WHERE appr.id = lr.approver_id AND ap.level = 'director'
+            )
+        ) +
+        (SELECT COUNT(*)::int
+          FROM overtime_request ot
+          WHERE ot.status = 'pending'
+            AND EXISTS (
+              SELECT 1 FROM employee appr
+              JOIN position ap ON appr.position_id = ap.id
+              WHERE appr.id = ot.approver_id AND ap.level = 'director'
+            )
+        ) +
+        (SELECT COUNT(*)::int
+          FROM attendance_explanation_request aer
+          WHERE aer.status = 'pending'
+            AND EXISTS (
+              SELECT 1 FROM employee appr
+              JOIN position ap ON appr.position_id = ap.id
+              WHERE appr.id = aer.approver_id AND ap.level = 'director'
+            )
+        ) +
         (SELECT COUNT(*)::int FROM payroll WHERE status = 'pending_approval')
       ) as total_req
     `);
@@ -1278,9 +1303,35 @@ const getDashboardOverview = async (req, res) => {
 
     // 5. Yêu cầu chờ duyệt (Lấy 8 cái mới nhất)
     const [requests] = await db.query(`
-      SELECT lr.id, e.full_name as name, 'leave' as type, lr.created_at FROM leave_request lr JOIN employee e ON lr.employee_id = e.id WHERE lr.status = 'pending'
+      SELECT lr.id, e.full_name as name, 'leave' as type, lr.created_at
+      FROM leave_request lr
+      JOIN employee e ON lr.employee_id = e.id
+      WHERE lr.status = 'pending'
+        AND EXISTS (
+          SELECT 1 FROM employee appr
+          JOIN position ap ON appr.position_id = ap.id
+          WHERE appr.id = lr.approver_id AND ap.level = 'director'
+        )
       UNION ALL
-      SELECT ot.id, e.full_name as name, 'overtime' as type, ot.created_at FROM overtime_request ot JOIN employee e ON ot.employee_id = e.id WHERE ot.status = 'pending'
+      SELECT ot.id, e.full_name as name, 'overtime' as type, ot.created_at
+      FROM overtime_request ot
+      JOIN employee e ON ot.employee_id = e.id
+      WHERE ot.status = 'pending'
+        AND EXISTS (
+          SELECT 1 FROM employee appr
+          JOIN position ap ON appr.position_id = ap.id
+          WHERE appr.id = ot.approver_id AND ap.level = 'director'
+        )
+      UNION ALL
+      SELECT aer.id, e.full_name as name, 'explanation' as type, aer.created_at
+      FROM attendance_explanation_request aer
+      JOIN employee e ON aer.employee_id = e.id
+      WHERE aer.status = 'pending'
+        AND EXISTS (
+          SELECT 1 FROM employee appr
+          JOIN position ap ON appr.position_id = ap.id
+          WHERE appr.id = aer.approver_id AND ap.level = 'director'
+        )
       UNION ALL
       SELECT pr.id, e.full_name as name, 'payroll' as type, pr.created_at
       FROM payroll pr
@@ -1409,26 +1460,41 @@ const createApprovalNotification = async ({ transaction, type, employeeId, emplo
   }
 
   const isLeave = type === 'leave';
-  const requestLabel = isLeave ? 'Đơn phép' : 'Đơn tăng ca';
+  const isExplanation = type === 'explanation';
+  const requestLabel = isLeave ? 'Đơn phép' : isExplanation ? 'Đơn giải trình' : 'Đơn tăng ca';
   const title = isApproved ? `${requestLabel} đã được duyệt` : `${requestLabel} bị từ chối`;
   const desc = isApproved ? 'Yêu cầu của bạn đã được Giám đốc phê duyệt.' : 'Yêu cầu của bạn đã bị Giám đốc từ chối.';
   const rangeLabel = isLeave
-    ? `${requestRow?.start_datetime || ''} - ${requestRow?.end_datetime || ''}`
-    : `${requestRow?.ot_date || ''} ${requestRow?.start_time || ''} - ${requestRow?.end_time || ''}`;
+    ? `${formatDateTimeVi(requestRow?.start_datetime)} - ${formatDateTimeVi(requestRow?.end_datetime)}`
+    : isExplanation
+      ? `${formatDateVi(requestRow?.attendance_date)} ${normalizeTimeText(requestRow?.proposed_check_in) || '--:--'} - ${normalizeTimeText(requestRow?.proposed_check_out) || '--:--'}`
+      : `${formatDateVi(requestRow?.ot_date)} ${normalizeTimeText(requestRow?.start_time)} - ${normalizeTimeText(requestRow?.end_time)}`.trim();
+  const reasonText = requestRow?.reason || 'Không có';
+  const tone = isApproved
+    ? {
+        titleColor: '#065f46',
+        border: '#a7f3d0',
+        background: '#ecfdf5'
+      }
+    : {
+        titleColor: '#b91c1c',
+        border: '#fecaca',
+        background: '#fef2f2'
+      };
   const content = isApproved
     ? `
-      <p><strong style="color:#065f46">${requestLabel} của bạn đã được chấp thuận.</strong></p>
-      <div style="margin:10px 0;padding:10px 12px;border:1px solid #a7f3d0;background:#ecfdf5;border-radius:10px;">
-        <p style="margin:0;"><strong>Thời gian:</strong> ${rangeLabel}</p>
+      <p style="margin:0 0 8px;"><strong style="color:${tone.titleColor};font-size:18px;">${requestLabel} của bạn đã được chấp thuận.</strong></p>
+      <div style="margin:10px 0;padding:12px 14px;border:1px solid ${tone.border};background:${tone.background};border-radius:12px;">
+        <p style="margin:0 0 8px;"><strong>Thời gian:</strong> ${rangeLabel}</p>
+        <p style="margin:0;"><strong>Lý do trong đơn:</strong> ${reasonText}</p>
       </div>
-      <p><strong>Lý do trong đơn:</strong> ${requestRow?.reason || 'Không có'}</p>
     `
     : `
-      <p><strong style="color:#b91c1c">${requestLabel} của bạn đã bị từ chối.</strong></p>
-      <div style="margin:10px 0;padding:10px 12px;border:1px solid #fecaca;background:#fef2f2;border-radius:10px;">
-        <p style="margin:0;"><strong>Thời gian:</strong> ${rangeLabel}</p>
+      <p style="margin:0 0 8px;"><strong style="color:${tone.titleColor};font-size:18px;">${requestLabel} của bạn đã bị từ chối.</strong></p>
+      <div style="margin:10px 0;padding:12px 14px;border:1px solid ${tone.border};background:${tone.background};border-radius:12px;">
+        <p style="margin:0 0 8px;"><strong>Thời gian:</strong> ${rangeLabel}</p>
+        <p style="margin:0;"><strong>Lý do trong đơn:</strong> ${reasonText}</p>
       </div>
-      <p><strong>Lý do trong đơn:</strong> ${requestRow?.reason || 'Không có'}</p>
     `;
 
   return createPersonalNotification({
@@ -1449,6 +1515,14 @@ const LEAVE_TYPE_LABELS = {
   ot: 'Nghỉ bù (OT)',
   maternity: 'Nghỉ thai sản',
   bereavement: 'Nghỉ tang'
+};
+
+const EXPLANATION_TYPE_LABELS = {
+  forgot_checkin: 'Quên chấm công vào',
+  forgot_checkout: 'Quên chấm công ra',
+  system_error: 'Lỗi hệ thống',
+  late_arrival: 'Đi muộn',
+  early_leave: 'Về sớm'
 };
 
 const formatDateTimeVi = (value) => {
@@ -1535,7 +1609,7 @@ const getPayrollApprovalRows = async (transaction = null) => db.query(
 
 const getLeaveApprovalRows = async (transaction = null) => db.query(
   `
-  SELECT lr.id, lr.employee_id, lr.leave_type, lr.start_datetime, lr.end_datetime, lr.reason, lr.status,
+  SELECT lr.id, lr.employee_id, lr.leave_type, lr.start_datetime, lr.end_datetime, lr.reason, lr.status, lr.attachment,
          lr.created_at, e.employee_code, e.full_name, d.id AS department_id, d.department_name, p.position_name,
          dm.full_name AS direct_manager_name
   FROM leave_request lr
@@ -1575,6 +1649,95 @@ const getOvertimeApprovalRows = async (transaction = null) => db.query(
   { type: QueryTypes.SELECT, transaction }
 );
 
+const getExplanationApprovalRows = async (transaction = null) => db.query(
+  `
+  SELECT aer.id, aer.employee_id, aer.attendance_date, aer.explanation_type, aer.proposed_check_in, aer.proposed_check_out,
+         aer.reason, aer.attachment_url, aer.status, aer.created_at,
+         e.employee_code, e.full_name, d.id AS department_id, d.department_name, p.position_name,
+         dm.full_name AS direct_manager_name
+  FROM attendance_explanation_request aer
+  JOIN employee e ON aer.employee_id = e.id
+  LEFT JOIN position p ON e.position_id = p.id
+  LEFT JOIN department d ON p.department_id = d.id
+  LEFT JOIN employee dm ON e.direct_manager_id = dm.id
+  WHERE aer.status = 'pending'
+    AND EXISTS (
+      SELECT 1 FROM employee appr
+      JOIN position ap ON appr.position_id = ap.id
+      WHERE appr.id = aer.approver_id AND ap.level = 'director'
+    )
+  ORDER BY aer.created_at DESC
+  `,
+  { type: QueryTypes.SELECT, transaction }
+);
+
+const applyApprovedExplanationToAttendance = async ({ transaction, request }) => {
+  const attendanceDate = request?.attendance_date;
+  const checkInTime = normalizeTimeText(request?.proposed_check_in);
+  const checkOutTime = normalizeTimeText(request?.proposed_check_out);
+
+  if (!request?.employee_id || !attendanceDate) return;
+
+  await db.query(
+    `
+    INSERT INTO attendance (employee_id, attendance_date, check_in_time, check_out_time)
+    VALUES (
+      :employeeId,
+      :attendanceDate,
+      CASE
+        WHEN :checkInTime <> '' THEN timezone('Asia/Ho_Chi_Minh', :attendanceDate::date + :checkInTime::time)
+        ELSE NULL
+      END,
+      CASE
+        WHEN :checkOutTime <> '' THEN timezone('Asia/Ho_Chi_Minh', :attendanceDate::date + :checkOutTime::time)
+        ELSE NULL
+      END
+    )
+    ON CONFLICT (employee_id, attendance_date)
+    DO UPDATE SET
+      check_in_time = COALESCE(EXCLUDED.check_in_time, attendance.check_in_time),
+      check_out_time = COALESCE(EXCLUDED.check_out_time, attendance.check_out_time)
+    `,
+    {
+      replacements: {
+        employeeId: request.employee_id,
+        attendanceDate,
+        checkInTime,
+        checkOutTime
+      },
+      transaction
+    }
+  );
+
+  await db.query(
+    `
+    UPDATE attendance
+    SET
+      status = CASE
+        WHEN check_in_time IS NULL THEN 'absent'::attendance_status
+        WHEN (check_in_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::time > TIME '07:30:00' THEN 'late'::attendance_status
+        WHEN check_out_time IS NOT NULL
+          AND (check_out_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::time < TIME '17:00:00' THEN 'early_leave'::attendance_status
+        ELSE 'on_time'::attendance_status
+      END,
+      total_work_hours = CASE
+        WHEN check_in_time IS NOT NULL AND check_out_time IS NOT NULL AND check_out_time >= check_in_time
+          THEN ROUND((EXTRACT(EPOCH FROM (check_out_time - check_in_time)) / 3600.0)::numeric, 2)
+        ELSE 0
+      END
+    WHERE employee_id = :employeeId
+      AND attendance_date = :attendanceDate::date
+    `,
+    {
+      replacements: {
+        employeeId: request.employee_id,
+        attendanceDate
+      },
+      transaction
+    }
+  );
+};
+
 const processDirectorApproval = async ({ transaction, type, id, action }) => {
   const isApproved = action === 'approve';
 
@@ -1604,7 +1767,14 @@ const processDirectorApproval = async ({ transaction, type, id, action }) => {
     return;
   }
 
-  const tableName = type === 'leave' ? 'leave_request' : type === 'overtime' ? 'overtime_request' : null;
+  const tableName =
+    type === 'leave'
+      ? 'leave_request'
+      : type === 'overtime'
+        ? 'overtime_request'
+        : type === 'explanation'
+          ? 'attendance_explanation_request'
+          : null;
   if (!tableName) throw new Error('Loại yêu cầu không hợp lệ.');
 
   const rows = await db.query(
@@ -1618,6 +1788,10 @@ const processDirectorApproval = async ({ transaction, type, id, action }) => {
     replacements: { status: isApproved ? 'approved' : 'rejected', id },
     transaction
   });
+
+  if (type === 'explanation' && isApproved) {
+    await applyApprovedExplanationToAttendance({ transaction, request });
+  }
 
   await createApprovalNotification({
     transaction,
@@ -1636,10 +1810,11 @@ const getDirectorApprovalsOverview = async (req, res) => {
     const departmentId = String(req.query?.departmentId || '').trim();
     const requestType = String(req.query?.requestType || req.query?.escalationReason || 'all').trim();
 
-    const [payrollRows, leaveRows, overtimeRows, departments] = await Promise.all([
+    const [payrollRows, leaveRows, overtimeRows, explanationRows, departments] = await Promise.all([
       getPayrollApprovalRows(),
       getLeaveApprovalRows(),
       getOvertimeApprovalRows(),
+      getExplanationApprovalRows(),
       db.query(
         `SELECT id, department_name FROM department ORDER BY department_name`,
         { type: QueryTypes.SELECT }
@@ -1720,6 +1895,7 @@ const getDirectorApprovalsOverview = async (req, res) => {
       endDateLabel: formatDateTimeVi(row.end_datetime),
       range_label: `${formatDateTimeVi(row.start_datetime)} - ${formatDateTimeVi(row.end_datetime)}`,
       reason: row.reason || '',
+      attachment: row.attachment || '',
       timeLabel: `${formatDateTimeVi(row.start_datetime)} - ${formatDateTimeVi(row.end_datetime)}`,
       meta_label: `${formatDateTimeVi(row.start_datetime)} - ${formatDateTimeVi(row.end_datetime)}`,
       meta_sub: row.reason || 'Không có lý do',
@@ -1730,7 +1906,8 @@ const getDirectorApprovalsOverview = async (req, res) => {
       escalationReasonLabel: 'Đơn phép',
       status: row.status,
       detail: {
-        reason: row.reason || ''
+        reason: row.reason || '',
+        attachment: row.attachment || ''
       }
     }));
 
@@ -1773,7 +1950,50 @@ const getDirectorApprovalsOverview = async (req, res) => {
       }
     }));
 
-    const allItems = [...payrollItems, ...leaveItems, ...overtimeItems];
+    const explanationItems = explanationRows.map((row) => ({
+      id: row.id,
+      type: 'explanation',
+      request_type: 'explanation',
+      code: `GT-${String(row.id).slice(0, 8).toUpperCase()}`,
+      title: 'Đơn giải trình',
+      employee_id: row.employee_id,
+      employeeId: row.employee_id,
+      employee_code: row.employee_code,
+      employeeCode: row.employee_code,
+      employee_name: row.full_name,
+      employeeName: row.full_name,
+      department_id: row.department_id,
+      departmentId: row.department_id,
+      department_name: row.department_name,
+      departmentName: row.department_name,
+      position_name: row.position_name,
+      positionName: row.position_name,
+      directManagerName: row.direct_manager_name,
+      explanation_type: row.explanation_type,
+      explanationType: row.explanation_type,
+      explanationTypeLabel: EXPLANATION_TYPE_LABELS[row.explanation_type] || 'Đơn giải trình',
+      attendanceDateLabel: formatDateVi(row.attendance_date),
+      checkInLabel: normalizeTimeText(row.proposed_check_in),
+      checkOutLabel: normalizeTimeText(row.proposed_check_out),
+      timeRangeLabel: `${normalizeTimeText(row.proposed_check_in) || '--:--'} - ${normalizeTimeText(row.proposed_check_out) || '--:--'}`,
+      range_label: `${formatDateVi(row.attendance_date)} ${normalizeTimeText(row.proposed_check_in) || '--:--'} - ${normalizeTimeText(row.proposed_check_out) || '--:--'}`,
+      reason: row.reason || '',
+      attachment: row.attachment_url || '',
+      timeLabel: `${formatDateVi(row.attendance_date)} ${normalizeTimeText(row.proposed_check_in) || '--:--'} - ${normalizeTimeText(row.proposed_check_out) || '--:--'}`,
+      meta_label: `${formatDateVi(row.attendance_date)} ${normalizeTimeText(row.proposed_check_in) || '--:--'} - ${normalizeTimeText(row.proposed_check_out) || '--:--'}`,
+      meta_sub: row.reason || 'Không có lý do',
+      subtitle: row.reason || 'Không có lý do',
+      created_at: row.created_at,
+      createdAt: row.created_at,
+      escalationReasonLabel: 'Đơn giải trình',
+      status: row.status,
+      detail: {
+        reason: row.reason || '',
+        attachment: row.attachment_url || ''
+      }
+    }));
+
+    const allItems = [...payrollItems, ...leaveItems, ...overtimeItems, ...explanationItems];
     const filteredItems = allItems.filter((item) => {
       if (tab === 'payroll' && item.type !== 'payroll') return false;
       if (tab === 'leave' && item.type === 'payroll') return false;
@@ -1808,14 +2028,15 @@ const getDirectorApprovalsOverview = async (req, res) => {
         items: filteredItems,
         stats: {
           payrollPendingCount: payrollItems.length,
-          leavePendingCount: leaveItems.length + overtimeItems.length
+          leavePendingCount: leaveItems.length + overtimeItems.length + explanationItems.length
         },
         options: {
           departments: departments || [],
           requestTypes: [
             { value: 'all', label: 'Tất cả đơn' },
             { value: 'leave', label: 'Đơn phép' },
-            { value: 'overtime', label: 'Đơn tăng ca' }
+            { value: 'overtime', label: 'Đơn tăng ca' },
+            { value: 'explanation', label: 'Đơn giải trình' }
           ]
         }
       }
