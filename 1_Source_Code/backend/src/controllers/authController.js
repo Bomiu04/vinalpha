@@ -238,7 +238,8 @@ const resetPassword = async (req, res) => {
 
     const query = `
       UPDATE user_account 
-      SET password_hash = crypt(:newPassword, gen_salt('bf')) 
+      SET password_hash = crypt(:newPassword, gen_salt('bf')),
+          require_pass_change = true
       WHERE employee_id = (
         SELECT id FROM employee 
         WHERE work_email = :email OR personal_email = :email

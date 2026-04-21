@@ -1,7 +1,6 @@
 const db = require('../config/database');
 const { sendAccountEmail } = require('../services/emailService');
 const { Employee, UserAccount, Position, Department } = require('../models');
-const bcrypt = require('bcrypt');
 
 // ==========================================
 // 1. LẤY DANH SÁCH USER
@@ -94,18 +93,31 @@ const createUser = async (req, res) => {
       }
     }
 
-    // Tạo tài khoản UserAccount bằng Sequelize
-    const salt = await bcrypt.genSalt(10);
-    const password_hash = await bcrypt.hash(password, salt);
+    // Tạo tài khoản UserAccount bằng SQL Raw để dùng hàm crypt() của Postgres
+    const insertQuery = `
+      INSERT INTO user_account (
+        employee_id, username, password_hash, 
+        role_code, status, require_pass_change
+      )
+      VALUES (
+        :employeeId, :username, crypt(:password, gen_salt('bf')), 
+        :role, :status, true
+      )
+      RETURNING *;
+    `;
 
-    const newUserAccount = await UserAccount.create({
-      employee_id: finalEmployeeId,
-      username: username,
-      password_hash: password_hash,
-      role_code: finalRole,
-      status: status ? status.toLowerCase() : 'active',
-      require_pass_change: true
-    }, { transaction });
+    const [userResult] = await db.query(insertQuery, {
+      replacements: {
+        employeeId: finalEmployeeId,
+        username: username,
+        password: password,
+        role: finalRole,
+        status: status ? status.toLowerCase() : 'active'
+      },
+      transaction
+    });
+
+    const newUserAccount = userResult[0];
 
     // BƯỚC 3: XÁC NHẬN LƯU VÀO DATABASE
     await transaction.commit(); 

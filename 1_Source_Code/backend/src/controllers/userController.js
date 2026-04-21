@@ -20,8 +20,8 @@ const createUser = async (req, res) => {
   try {
     // 2. Viết câu lệnh SQL (Dùng chuẩn Sequelize để bảo mật, chống SQL Injection)
     const query = `
-      INSERT INTO user_account (employee_id, username, password_hash, role_code, status)
-      VALUES (:employeeId, :username, crypt(:password, gen_salt('bf')), :role, :status)
+      INSERT INTO user_account (employee_id, username, password_hash, role_code, status, require_pass_change)
+      VALUES (:employeeId, :username, crypt(:password, gen_salt('bf')), :role, :status, true)
       RETURNING id, username;
     `;
     
