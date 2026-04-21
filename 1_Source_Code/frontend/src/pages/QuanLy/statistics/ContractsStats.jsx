@@ -142,7 +142,7 @@ export default function ContractStatistics() {
     }
   };
 
-  const handleRenewSubmit = async (e) => {
+  const handleRenewSubmit = async () => {
     // 1. Ràng buộc UI Ngày tháng
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -506,7 +506,7 @@ export default function ContractStatistics() {
 
                 {/* Lương cơ bản */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Lương cơ bản (VND)</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Lương cơ bản (VNĐ)</label>
                   <input 
                     type="number"
                     required

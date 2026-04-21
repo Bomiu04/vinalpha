@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { useLocation } from 'react-router-dom';
 import {
@@ -24,11 +24,9 @@ const initialFilters = {
   requestType: 'all'
 };
 
-const currencyFormatter = new Intl.NumberFormat('vi-VN', {
-  style: 'currency',
-  currency: 'VND',
-  maximumFractionDigits: 0
-});
+const currencyFormatter = {
+  format: (value) => new Intl.NumberFormat('vi-VN').format(Number(value || 0)) + ' VNĐ'
+};
 
 const dateTimeFormatter = new Intl.DateTimeFormat('vi-VN', {
   dateStyle: 'short',

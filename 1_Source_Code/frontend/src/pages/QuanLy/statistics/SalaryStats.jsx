@@ -8,14 +8,14 @@ import payrollStatisticsService from '../../../services/payrollStatisticsService
 
 // Format currency
 const formatVND = (amount) => {
-  if (amount == null) return '0 đ';
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  if (amount == null) return '0 VNĐ';
+  return new Intl.NumberFormat('vi-VN').format(amount) + ' VNĐ';
 };
 
 const formatMillions = (amount) => {
-  if (amount == null) return '0 Triệu';
+  if (amount == null) return '0 VNĐ';
   const val = Number(amount) / 1000000;
-  return `${val.toLocaleString('vi-VN')} Triệu`;
+  return `${val.toLocaleString('vi-VN')} VNĐ`;
 };
 
 // Map colors based on department ID or index
