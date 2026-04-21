@@ -450,7 +450,8 @@ exports.changePassword = async (req, res) => {
 
     const updateQuery = `
       UPDATE user_account
-      SET password_hash = crypt($1, gen_salt('bf'))
+      SET password_hash = crypt($1, gen_salt('bf')),
+          require_pass_change = false
       WHERE employee_id = $2
     `;
 
