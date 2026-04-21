@@ -861,6 +861,16 @@ const filteredRequests = filterMonth
     </div>
   </div>
 )}
+{selectedRequest.status === "rejected" && (
+  <div className="info-section">
+    <h3 className="section-title">Lý do từ chối</h3>
+    <textarea
+      className="input-option-3"
+      value={selectedRequest.reject_reason || ""}
+      readOnly
+    />
+  </div>
+)}
 
       <div style={{ textAlign: "right" }}>
         <button onClick={closeModal} className="btn-close-modal">
@@ -949,6 +959,7 @@ const filteredRequests = filterMonth
             {new Date(r.attendance_date).toLocaleDateString("vi-VN")}
             {" "}({r.proposed_check_in} - {r.proposed_check_out})
           </p>
+          
         </div>
 
         {/* STATUS */}

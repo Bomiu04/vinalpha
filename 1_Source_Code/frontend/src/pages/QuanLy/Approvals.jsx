@@ -112,11 +112,12 @@ const Approvals = () => {
 
   const handleApprove = async (type, id) => {
     try {
-      await managerApprovals.approveRequest(type, id);
+      await managerApprovals.approveRequest(type, id,user.id);
       setRequests(prev => prev.filter(r => r.id !== id || r.type !== type));
       alert("Đã phê duyệt đơn thành công!");
     } catch (err) {
-      alert("Phê duyệt thất bại");
+      console.log("APPROVE ERROR:", err.response?.data || err.message);
+  alert(err.response?.data?.message || "Phê duyệt thất bại");
     }
   };
 
@@ -140,7 +141,7 @@ const handleApproveAll = async () => {
 
     await Promise.all(
       requests.map(req =>
-        managerApprovals.approveRequest(req.type, req.id)
+        managerApprovals.approveRequest(req.type, req.id,user.id)
       )
     );
 
@@ -175,6 +176,22 @@ const handleApproveAll = async () => {
     if (historyFilter === 'all') return true;
     return req.type === historyFilter;
   });
+
+  const countDaysExcludingSunday = (start, end) => {
+  let current = moment(start);
+  const last = moment(end);
+
+  let count = 0;
+
+  while (current.isSameOrBefore(last, 'day')) {
+    if (current.day() !== 0) { // 0 = Chủ nhật
+      count++;
+    }
+    current.add(1, 'day');
+  }
+
+  return count;
+};
   return (
     <div className="approvals-container">
 
@@ -522,8 +539,10 @@ const handleApproveAll = async () => {
                       Tổng thời gian {selectedRequest.type === 'leave' ? 'nghỉ' : 'làm'} dự kiến:{" "}
                       <span>
                         {selectedRequest.type === 'leave'
-                          ? `${moment(selectedRequest.end_datetime)
-                              .diff(moment(selectedRequest.start_datetime), 'days') + 1} ngày`
+                          ? `${countDaysExcludingSunday(
+                              selectedRequest.start_datetime,
+                              selectedRequest.end_datetime
+                            )} ngày`
                           : `${moment(selectedRequest.end_time, "HH:mm")
                               .diff(moment(selectedRequest.start_time, "HH:mm"), 'hours', true)} giờ`}
                       </span>

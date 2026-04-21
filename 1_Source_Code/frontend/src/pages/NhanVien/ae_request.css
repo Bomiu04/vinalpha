@@ -74,7 +74,7 @@
   background: #dc2626;
 }
 .reject-reason {
-  font-size: 12px;
+  font-size: 11px !important ;
   max-width: 150px;
   color: #888;
   font-style: italic; /* Chữ nghiêng tạo cảm giác là ghi chú thêm */
