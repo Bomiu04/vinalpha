@@ -506,7 +506,7 @@ export default function ContractStatistics() {
 
                 {/* Lương cơ bản */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Lương cơ bản (VND)</label>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Lương cơ bản (VNĐ)</label>
                   <input 
                     type="number"
                     required

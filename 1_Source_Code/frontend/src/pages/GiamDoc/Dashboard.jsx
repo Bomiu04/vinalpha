@@ -108,7 +108,7 @@ export default function Dashboard() {
 
         <Card
           title="Quỹ lương ước tính"
-          value={`${(summary.salary / 1_000_000).toLocaleString('vi-VN')} Tr`}
+          value={`${(summary.salary / 1_000_000).toLocaleString('vi-VN')} Triệu VNĐ`}
           icon={<Wallet size={18}/>}
         />
 
