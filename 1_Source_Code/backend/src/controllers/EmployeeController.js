@@ -796,18 +796,28 @@ exports.updateEmployee = async (req, res) => {
 // ==============================
 exports.createRequest = async (req, res) => {
   try {
-    const {
-      userId,
-      leave_type,
-      start_datetime,
-      end_datetime,
-      reason,
-      approverId
-    } = req.body;
+    const { leave_type, start_datetime, end_datetime, reason, approverId } = req.body;
 
+    console.log("Token Data:", req.user);
+    // 1. Lấy ID tài khoản từ Token
+    const accountId = req.user.id;
+
+    // 2. Chạy vào Database để "mò" ra employee_id thực sự của tài khoản này
+    const userRecord = await db.query(
+      `SELECT employee_id FROM user_account WHERE id = $1`,
+      { bind: [accountId], type: QueryTypes.SELECT }
+    );
+
+    // 3. Lấy ra mã nhân viên
+    const employeeId = userRecord.length > 0 ? userRecord[0].employee_id : null;
+
+    // 4. Nếu vẫn không có, chặn luôn không cho tạo đơn
+    if (!employeeId) {
+      return res.status(400).json({ message: "Tài khoản của bạn chưa được liên kết với nhân viên nào!" });
+    }
     const file = req.file;
 
-    if (!userId || !leave_type || !start_datetime || !end_datetime) {
+    if (!employeeId || !leave_type || !start_datetime || !end_datetime) {
       return res.status(400).json({ message: 'Thiếu dữ liệu' });
     }
 
@@ -838,7 +848,7 @@ exports.createRequest = async (req, res) => {
       `,
       {
         bind: [
-          userId,
+          employeeId,
           leave_type,
           start_datetime,
           end_datetime,
@@ -868,7 +878,20 @@ exports.createRequest = async (req, res) => {
 // ==============================
 exports.getMyRequests = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Ưu tiên lấy employee_id từ token để đảm bảo data isolation chính xác
+    console.log("Token Data:", req.user);
+    const accountId = req.user.id;
+    const userRecord = await db.query(
+      `SELECT employee_id FROM user_account WHERE id = $1`,
+      { bind: [accountId], type: QueryTypes.SELECT }
+    );
+    const employeeId = userRecord.length > 0 ? userRecord[0].employee_id : null;
+
+    if (!employeeId) {
+      return res.status(400).json({ message: "Tài khoản chưa được liên kết với nhân viên!" });
+    }
+
+    if (!employeeId) return res.status(401).json({ message: 'Không xác thực được người dùng' });
 
     const result = await db.query(
       `
@@ -888,7 +911,7 @@ exports.getMyRequests = async (req, res) => {
       ORDER BY lr.created_at DESC
       `,
       {
-        bind: [id],
+        bind: [employeeId],
         type: QueryTypes.SELECT
       }
     );
@@ -958,7 +981,6 @@ exports.getApprovers = async (req, res) => {
 exports.createOvertimeRequest = async (req, res) => {
   try {
     const {
-      employee_id,
       ot_date,
       start_time,
       end_time,
@@ -966,8 +988,20 @@ exports.createOvertimeRequest = async (req, res) => {
       approver_id
     } = req.body;
 
+    console.log("Token Data:", req.user);
+    const accountId = req.user.id;
+    const userRecord = await db.query(
+      `SELECT employee_id FROM user_account WHERE id = $1`,
+      { bind: [accountId], type: QueryTypes.SELECT }
+    );
+    const employeeId = userRecord.length > 0 ? userRecord[0].employee_id : null;
+
+    if (!employeeId) {
+      return res.status(400).json({ message: "Tài khoản chưa được liên kết với nhân viên!" });
+    }
+
     // validate
-    if (!employee_id || !ot_date || !start_time || !end_time || !approver_id) {
+    if (!employeeId || !ot_date || !start_time || !end_time || !approver_id) {
       return res.status(400).json({ message: "Thiếu dữ liệu!" });
     }
 
@@ -984,7 +1018,7 @@ exports.createOvertimeRequest = async (req, res) => {
 
     const [result] = await db.query(query, {
       replacements: {
-        employee_id,
+        employee_id: employeeId,
         ot_date,
         start_time,
         end_time,
@@ -1007,7 +1041,20 @@ exports.createOvertimeRequest = async (req, res) => {
 // hàm lấy danh sách đơn tăng ca
 exports.getMyOvertimeRequests = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Ưu tiên lấy employee_id từ token để đảm bảo data isolation chính xác
+    console.log("Token Data:", req.user);
+    const accountId = req.user.id;
+    const userRecord = await db.query(
+      `SELECT employee_id FROM user_account WHERE id = $1`,
+      { bind: [accountId], type: QueryTypes.SELECT }
+    );
+    const employeeId = userRecord.length > 0 ? userRecord[0].employee_id : null;
+
+    if (!employeeId) {
+      return res.status(400).json({ message: "Tài khoản chưa được liên kết với nhân viên!" });
+    }
+
+    if (!employeeId) return res.status(401).json({ message: 'Không xác thực được người dùng' });
 
     const query = `
       SELECT 
@@ -1015,12 +1062,12 @@ exports.getMyOvertimeRequests = async (req, res) => {
         e.full_name AS approver_name
       FROM overtime_request ot
       LEFT JOIN employee e ON ot.approver_id = e.id
-      WHERE ot.employee_id = :id
+      WHERE ot.employee_id = :employeeId
       ORDER BY ot.created_at DESC
     `;
 
     const [rows] = await db.query(query, {
-      replacements: { id }
+      replacements: { employeeId }
     });
 
     res.json(rows);
@@ -1035,7 +1082,6 @@ exports.getMyOvertimeRequests = async (req, res) => {
 exports.createExplanationRequest = async (req, res) => {
   try {
     const {
-      userId,
       attendance_date,
       explanation_type,
       proposed_check_in,
@@ -1044,10 +1090,22 @@ exports.createExplanationRequest = async (req, res) => {
       approverId
     } = req.body;
 
+    console.log("Token Data:", req.user);
+    const accountId = req.user.id;
+    const userRecord = await db.query(
+      `SELECT employee_id FROM user_account WHERE id = $1`,
+      { bind: [accountId], type: QueryTypes.SELECT }
+    );
+    const employeeId = userRecord.length > 0 ? userRecord[0].employee_id : null;
+
+    if (!employeeId) {
+      return res.status(400).json({ message: "Tài khoản chưa được liên kết với nhân viên!" });
+    }
+
     const file = req.file;
 
     // ===== VALIDATE =====
-    if (!userId || !attendance_date || !explanation_type) {
+    if (!employeeId || !attendance_date || !explanation_type) {
       return res.status(400).json({ message: "Thiếu dữ liệu bắt buộc" });
     }
 
@@ -1097,7 +1155,7 @@ exports.createExplanationRequest = async (req, res) => {
       `,
       {
         bind: [
-          userId,
+          employeeId,
           attendance_date,
           explanation_type,
           proposed_check_in || null,
@@ -1127,7 +1185,20 @@ exports.createExplanationRequest = async (req, res) => {
 //lấy đơn giải trình
 exports.getMyExplanationRequests = async (req, res) => {
   try {
-    const { id } = req.params;
+    // Ưu tiên lấy employee_id từ token để đảm bảo data isolation chính xác
+    console.log("Token Data:", req.user);
+    const accountId = req.user.id;
+    const userRecord = await db.query(
+      `SELECT employee_id FROM user_account WHERE id = $1`,
+      { bind: [accountId], type: QueryTypes.SELECT }
+    );
+    const employeeId = userRecord.length > 0 ? userRecord[0].employee_id : null;
+
+    if (!employeeId) {
+      return res.status(400).json({ message: "Tài khoản chưa được liên kết với nhân viên!" });
+    }
+
+    if (!employeeId) return res.status(401).json({ message: 'Không xác thực được người dùng' });
 
     const result = await db.query(
       `
@@ -1149,7 +1220,7 @@ exports.getMyExplanationRequests = async (req, res) => {
       ORDER BY aer.created_at DESC
       `,
       {
-        bind: [id],
+        bind: [employeeId],
         type: QueryTypes.SELECT
       }
     );
