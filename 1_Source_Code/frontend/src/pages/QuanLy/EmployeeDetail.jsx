@@ -11,7 +11,7 @@ export default function EmployeeDetail({ employee, onBack, onEdit }) {
   const getAvatarUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
-    return `http://localhost:5000/${url}`;
+    return `http://localhost:5000/uploads/${url}`;
   };
 
   useEffect(() => {

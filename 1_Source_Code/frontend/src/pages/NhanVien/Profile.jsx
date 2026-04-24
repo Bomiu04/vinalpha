@@ -20,7 +20,7 @@ export default function Profile() {
   const getAvatarUrl = (url) => {
     if (!url) return null;
     if (url.startsWith('http')) return url;
-    return `http://localhost:5000/${url}`;
+    return `http://localhost:5000/uploads/${url}`;
   };
   const [confirmPassword, setConfirmPassword] = useState("");
   const [modalMessage, setModalMessage] = useState("");

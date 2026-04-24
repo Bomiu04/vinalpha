@@ -19,7 +19,7 @@ const { sendAccountEmail } = require('../services/emailService');
 exports.getDashboard = async (req, res) => {
  try {
     const { id } = req.params;
-    const employeeResult = await db.query(`SELECT full_name FROM employee WHERE id = $1`, { bind: [id], type: QueryTypes.SELECT });
+    const employeeResult = await db.query(`SELECT full_name, avatar_url FROM employee WHERE id = $1`, { bind: [id], type: QueryTypes.SELECT });
     const employee = employeeResult[0];
     if (!employee) return res.status(404).json({ message: 'Không tìm thấy nhân viên' });
 
@@ -378,6 +378,7 @@ exports.getProfile = async (req, res) => {
     const result = await db.query(`
             SELECT 
         e.id,
+        e.avatar_url,
         e.full_name,
         e.work_email,
         e.employee_code,
@@ -634,7 +635,7 @@ exports.createEmployee = async (req, res) => {
       status: status || 'active',
       position_id,
       join_date: join_date || null,
-      avatar_url: req.file ? `uploads/${req.file.filename}` : null
+      avatar_url: req.file ? `avatars/${req.file.filename}` : null
     }, { transaction: t });
 
     // 4. Tạo tài khoản người dùng
@@ -754,7 +755,7 @@ exports.updateEmployee = async (req, res) => {
       position_id: position_id || employee.position_id,
       join_date: join_date || employee.join_date,
       direct_manager_id: direct_manager_id !== undefined ? direct_manager_id : employee.direct_manager_id,
-      avatar_url: req.file ? `uploads/${req.file.filename}` : employee.avatar_url
+      avatar_url: req.file ? `avatars/${req.file.filename}` : employee.avatar_url
     }, { transaction: t });
 
     // 2. Logic thăng chức / đổi trưởng phòng

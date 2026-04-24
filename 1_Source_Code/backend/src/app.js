@@ -3,6 +3,7 @@ const cors = require('cors');
 const db = require('./config/database');
 const http = require('http'); // 1. Thêm http
 const { Server } = require('socket.io'); // 2. Thêm Server từ socket.io
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -32,7 +33,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '100mb' })); 
 app.use(express.urlencoded({ limit: '100mb', extended: true, parameterLimit: 100000 }));
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ================= 2. KHỞI TẠO SOCKET.IO =================
 const server = http.createServer(app);

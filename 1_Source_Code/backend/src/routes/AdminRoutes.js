@@ -15,17 +15,33 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Cấu hình Multer
+// Cấu hình Multer chung (cho các file khác nếu có)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadDir); 
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'AVATAR-' + uniqueSuffix + path.extname(file.originalname));
+    cb(null, 'ADMIN-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 const upload = multer({ storage: storage });
+
+// Cấu hình Multer riêng cho Avatar
+const avatarStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = path.join(__dirname, '../../uploads/avatars/');
+    if (!fs.existsSync(dir)){
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = Date.now() + '-' + file.originalname;
+    cb(null, uniqueName);
+  }
+});
+const uploadAvatar = multer({ storage: avatarStorage });
 
 const { 
   getAllUsers, 
@@ -60,8 +76,8 @@ router.use(authenticateToken);
 // Gốc: /api/admin/...
 // ==========================================
 router.get('/users', getAllUsers); 
-router.post('/users', upload.single('avatar'), createUser); 
-router.put('/users/:id', upload.single('avatar'), updateUser);
+router.post('/users', uploadAvatar.single('avatar'), createUser); 
+router.put('/users/:id', uploadAvatar.single('avatar'), updateUser);
 router.get('/employees-no-account', getEmployeesWithoutAccount);
 router.post('/force-reset-password', adminForceResetPassword);
 router.post('/sync-managers', syncManagerAssignments); // Đồng bộ direct_manager_id toàn hệ thống

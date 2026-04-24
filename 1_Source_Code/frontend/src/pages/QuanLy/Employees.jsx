@@ -267,8 +267,19 @@ export default function EmployeeManagement() {
                     <td className="py-4 px-4 text-sm font-medium text-slate-600">{emp.code}</td>
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-100 to-blue-100 flex items-center justify-center font-bold text-cyan-700 text-sm">
-                          {emp.name.split(' ').pop().charAt(0)}
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-cyan-100 to-blue-100 flex items-center justify-center font-bold text-cyan-700 text-sm overflow-hidden border border-slate-100">
+                          {emp.avatar_url ? (
+                            <img 
+                              src={`http://localhost:5000/uploads/${emp.avatar_url}`} 
+                              alt="Avatar" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(emp.name || 'U') + "&background=random";
+                              }}
+                            />
+                          ) : (
+                            emp.name.split(' ').pop().charAt(0)
+                          )}
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-800">{emp.name}</p>

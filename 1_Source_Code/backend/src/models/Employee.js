@@ -57,6 +57,10 @@ const Employee = sequelize.define('Employee', {
   direct_manager_id: {
     type: DataTypes.UUID,
     allowNull: true
+  },
+  avatar_url: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 }, {
   tableName: 'employee',

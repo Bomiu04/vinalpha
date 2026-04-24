@@ -88,7 +88,7 @@ const createUser = async (req, res) => {
         work_email: email || null,
         position_id: positionId || null,
         status: 'active',
-        avatar_url: req.file ? `uploads/${req.file.filename}` : null
+        avatar_url: req.file ? `avatars/${req.file.filename}` : null
       }, { transaction });
 
       finalEmployeeId = newEmployee.id;
@@ -227,7 +227,7 @@ const updateUser = async (req, res) => {
       const ua = await UserAccount.findByPk(id);
       if (ua && ua.employee_id) {
         await Employee.update(
-          { avatar_url: `uploads/${req.file.filename}` },
+          { avatar_url: `avatars/${req.file.filename}` },
           { where: { id: ua.employee_id } }
         );
       }
