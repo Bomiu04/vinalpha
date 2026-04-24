@@ -19,7 +19,7 @@ const { sendAccountEmail } = require('../services/emailService');
 exports.getDashboard = async (req, res) => {
  try {
     const { id } = req.params;
-    const employeeResult = await db.query(`SELECT full_name FROM employee WHERE id = $1`, { bind: [id], type: QueryTypes.SELECT });
+    const employeeResult = await db.query(`SELECT full_name, avatar_url FROM employee WHERE id = $1`, { bind: [id], type: QueryTypes.SELECT });
     const employee = employeeResult[0];
     if (!employee) return res.status(404).json({ message: 'Không tìm thấy nhân viên' });
 
@@ -392,6 +392,7 @@ exports.getProfile = async (req, res) => {
     const result = await db.query(`
             SELECT 
         e.id,
+        e.avatar_url,
         e.full_name,
         e.work_email,
         e.employee_code,
@@ -590,6 +591,35 @@ exports.createEmployee = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc!' });
     }
 
+    // --- 🛑 KIỂM TRA TRÙNG LẶP USERNAME & EMAIL ---
+    const existingUser = await db.query(
+      `SELECT id FROM user_account WHERE username = $1`,
+      { bind: [username], type: QueryTypes.SELECT }
+    );
+
+    if (existingUser && existingUser.length > 0) {
+      await t.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: "Tên đăng nhập (Username) này đã tồn tại trên hệ thống. Vui lòng chọn tên khác!" 
+      });
+    }
+
+    if (personal_email || work_email) {
+      const existingEmail = await db.query(
+        `SELECT id FROM employee WHERE personal_email = $1 OR work_email = $2`,
+        { bind: [personal_email || null, work_email || null], type: QueryTypes.SELECT }
+      );
+      if (existingEmail && existingEmail.length > 0) {
+        await t.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: "Email (Cá nhân hoặc Công việc) này đã tồn tại trên hệ thống!" 
+        });
+      }
+    }
+    // -------------------------------------
+
     // 1. Lấy thông tin chức vụ
     const position = await Position.findByPk(position_id, { transaction: t });
     if (!position) {
@@ -618,7 +648,8 @@ exports.createEmployee = async (req, res) => {
       bank_name,
       status: status || 'active',
       position_id,
-      join_date: join_date || null
+      join_date: join_date || null,
+      avatar_url: req.file ? `avatars/${req.file.filename}` : null
     }, { transaction: t });
 
     // 4. Tạo tài khoản người dùng
@@ -737,7 +768,8 @@ exports.updateEmployee = async (req, res) => {
       status: status || employee.status,
       position_id: position_id || employee.position_id,
       join_date: join_date || employee.join_date,
-      direct_manager_id: direct_manager_id !== undefined ? direct_manager_id : employee.direct_manager_id
+      direct_manager_id: direct_manager_id !== undefined ? direct_manager_id : employee.direct_manager_id,
+      avatar_url: req.file ? `avatars/${req.file.filename}` : employee.avatar_url
     }, { transaction: t });
 
     // 2. Logic thăng chức / đổi trưởng phòng

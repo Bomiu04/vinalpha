@@ -10,7 +10,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Cấu hình Multer
+// Cấu hình Multer cho quyết định (QD-...)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadDir); 
@@ -21,6 +21,22 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage: storage });
+
+// Cấu hình Multer cho Avatar
+const avatarStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = path.join(__dirname, '../../uploads/avatars/');
+    if (!fs.existsSync(dir)){
+        fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = Date.now() + '-' + file.originalname;
+    cb(null, uniqueName);
+  }
+});
+const uploadAvatar = multer({ storage: avatarStorage });
 
 const managementController = require('../controllers/managementController');
 const employeeController = require('../controllers/EmployeeController');
@@ -34,8 +50,8 @@ router.use(authenticateToken);
 router.get('/form-options', managementController.getFormOptions);
 router.get('/employees', managementController.getEmployees);
 router.get('/employees/:id', managementController.getEmployeeById);
-router.put('/employees/:id', employeeController.updateEmployee);
-router.post('/employees', employeeController.createEmployee);
+router.put('/employees/:id', uploadAvatar.single('avatar'), employeeController.updateEmployee);
+router.post('/employees', uploadAvatar.single('avatar'), employeeController.createEmployee);
 router.delete('/employees/:id', managementController.deleteEmployee);
 router.get('/dashboard/present', managementController.getPresentEmployees);
 router.get('/dashboard/absent', managementController.getAbsentEmployees);

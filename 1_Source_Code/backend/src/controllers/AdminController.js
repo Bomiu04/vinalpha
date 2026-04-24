@@ -45,6 +45,33 @@ const createUser = async (req, res) => {
   }
   // ------------------------------------------------
 
+  // --- 🛑 KIỂM TRA TRÙNG LẶP USERNAME & EMAIL ---
+  const existingUser = await db.query(
+    `SELECT id FROM user_account WHERE username = $1`,
+    { bind: [username], type: db.QueryTypes.SELECT }
+  );
+
+  if (existingUser && existingUser.length > 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Tên đăng nhập (Username) này đã tồn tại trên hệ thống. Vui lòng chọn tên khác!" 
+    });
+  }
+
+  if (email) {
+    const existingEmail = await db.query(
+      `SELECT id FROM employee WHERE personal_email = $1 OR work_email = $1`,
+      { bind: [email], type: db.QueryTypes.SELECT }
+    );
+    if (existingEmail && existingEmail.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email này đã tồn tại trên hệ thống. Vui lòng chọn email khác!" 
+      });
+    }
+  }
+  // -------------------------------------
+
   const transaction = await db.transaction();
 
   try {
@@ -60,7 +87,8 @@ const createUser = async (req, res) => {
         full_name: fullName,
         work_email: email || null,
         position_id: positionId || null,
-        status: 'active'
+        status: 'active',
+        avatar_url: req.file ? `avatars/${req.file.filename}` : null
       }, { transaction });
 
       finalEmployeeId = newEmployee.id;
@@ -192,6 +220,17 @@ const updateUser = async (req, res) => {
     if (updateFields.length > 0) {
       const query = `UPDATE user_account SET ${updateFields.join(', ')} WHERE id = :id RETURNING id;`;
       await db.query(query, { replacements });
+    }
+
+    // Cập nhật Avatar cho nhân viên liên kết nếu có upload file
+    if (req.file) {
+      const ua = await UserAccount.findByPk(id);
+      if (ua && ua.employee_id) {
+        await Employee.update(
+          { avatar_url: `avatars/${req.file.filename}` },
+          { where: { id: ua.employee_id } }
+        );
+      }
     }
 
     res.status(200).json({ success: true, message: "Cập nhật thành công" });

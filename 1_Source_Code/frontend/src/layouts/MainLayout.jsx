@@ -105,8 +105,19 @@ const MainLayout = () => {
                 transition: 'all 0.2s' 
               }}
             >
-              <div style={{ width: '35px', height: '35px', borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                👤
+              <div style={{ width: '35px', height: '35px', borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {user.avatar_url ? (
+                  <img 
+                    src={`http://localhost:5000/uploads/${user.avatar_url}`} 
+                    alt="Avatar" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => {
+                      e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.name || 'U') + "&background=random";
+                    }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '18px' }}>👤</span>
+                )}
               </div>
               <div>
                 <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{user.name || 'Người dùng'}</div>

@@ -20,8 +20,7 @@ const login = async (req, res) => {
 
     const query = `
       SELECT 
-        e.id as employee_id, e.full_name, e.work_email, 
-        ua.id as user_id, ua.username, ua.role_code, ua.status, ua.require_pass_change,
+        e.id as employee_id, e.full_name, e.work_email, e.avatar_url,        ua.id as user_id, ua.username, ua.role_code, ua.status, ua.require_pass_change,
         ua.password_hash, -- Lấy cái này để verify
         p.department_id
       FROM user_account ua
@@ -77,7 +76,8 @@ const login = async (req, res) => {
           name: user.full_name,
           username: user.username,
           role: user.role_code,
-          department_id: user.department_id || null
+          department_id: user.department_id || null,
+          avatar_url: user.avatar_url
         }
       });
     }
@@ -92,7 +92,8 @@ const login = async (req, res) => {
         name: user.full_name,
         username: user.username,
         role: user.role_code,
-        department_id: user.department_id || null
+        department_id: user.department_id || null,
+        avatar_url: user.avatar_url
       }
     });
 
@@ -238,8 +239,7 @@ const resetPassword = async (req, res) => {
 
     const query = `
       UPDATE user_account 
-      SET password_hash = crypt(:newPassword, gen_salt('bf')),
-          require_pass_change = true
+      SET password_hash = crypt(:newPassword, gen_salt('bf'))
       WHERE employee_id = (
         SELECT id FROM employee 
         WHERE work_email = :email OR personal_email = :email

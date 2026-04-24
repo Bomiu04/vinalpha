@@ -25,6 +25,7 @@ const getEmployees = async (req, res) => {
     const query = `
       SELECT 
         e.id, 
+        e.avatar_url,
         e.employee_code AS code, 
         e.full_name AS name, 
         e.work_email AS email, 
@@ -59,7 +60,8 @@ const getEmployees = async (req, res) => {
         department: emp.department || 'Chưa phân bổ',
         department_id: emp.department_id,
         status: emp.status,
-        statusText: statusText
+        statusText: statusText,
+        avatar_url: emp.avatar_url
       };
     });
 
