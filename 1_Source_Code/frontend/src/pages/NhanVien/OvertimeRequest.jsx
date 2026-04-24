@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axiosClient from "../../api/axiosClient";
 import { HiMiniXCircle } from "react-icons/hi2";
 import { MdChatBubbleOutline } from "react-icons/md";
 import { BsSend } from "react-icons/bs";
@@ -13,6 +12,8 @@ import { CiSearch } from "react-icons/ci";
 import { LuClock2 } from "react-icons/lu";
 import { GoBlocked } from "react-icons/go";
 import './OvertimeRequest.css'
+
+const today = new Date().toISOString().split('T')[0];
 const OvertimeRequest = () => {
   const [form, setForm] = useState({
     ot_date: "",
@@ -106,11 +107,11 @@ today.setHours(0, 0, 0, 0);
 const selectedDate = new Date(form.ot_date);
 selectedDate.setHours(0, 0, 0, 0);
 
-//  Rule 1: ngày phải > hôm nay
-if (selectedDate <= today) {
+//  Rule 1: ngày không được trong quá khứ
+if (new Date(form.ot_date) < new Date(today)) {
   setShowConfirmSubmit(false);
   setNotification({
-    message: "Ngày tăng ca phải lớn hơn ngày hiện tại!",
+    message: "Lỗi logic: Không được chọn ngày trong quá khứ!",
     type: "error",
   });
   setTimeout(() => setNotification({ message: "", type: "" }), 3000);
@@ -235,10 +236,7 @@ if (isOverlap(form.ot_date, form.start_time, form.end_time)) {
 }
 
   try {
-    const user = JSON.parse(localStorage.getItem("user"));
-
     const payload = {
-      employee_id: user.id,
       ot_date: form.ot_date,
       start_time: form.start_time,
       end_time: form.end_time,
@@ -248,7 +246,7 @@ if (isOverlap(form.ot_date, form.start_time, form.end_time)) {
 
     await employeeService.createOvertimeRequest(payload);
 
-    const res = await employeeService.getOvertimeRequests(user.id);
+    const res = await employeeService.getOvertimeRequests();
     const data = res?.data || res || [];
 
     setRequests(data);
@@ -319,7 +317,6 @@ const totalApprovedOTHours = requests
 
     return sum + diff / 60;
   }, 0);
-  const totalApprovedOTHoursFixed = totalApprovedOTHours.toFixed(1);
 const getLatestMonthYear = () => {
   if (!Array.isArray(requests) || requests.length === 0) {
     return "--/----";
@@ -398,7 +395,7 @@ useEffect(() => {
   if (!user?.id) return;
 
   employeeService
-    .getOvertimeRequests(user.id)
+    .getOvertimeRequests()
     .then((res) => {
       const data = res?.data || res || [];
 
@@ -478,7 +475,7 @@ const isOverlap = (newDate, newStart, newEnd) => {
                           type="date"
                           className="input-option"
                           value={form.ot_date}
-                          min={new Date().toISOString().split("T")[0]}
+                          min={today}
                           max={(() => {
                             const d = new Date();
                             d.setDate(d.getDate() + 10);

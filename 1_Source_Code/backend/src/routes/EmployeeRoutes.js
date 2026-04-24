@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const employeeController = require('../controllers/EmployeeController');
 const multer = require('multer');
+const authenticateToken = require('../middlewares/authMiddleware');
 
 // cấu hình nơi lưu file
 const storage = multer.diskStorage({
@@ -27,16 +28,17 @@ router.get('/contract/:id', employeeController.getContract);
 router.post('/change-password', employeeController.changePassword);
 
 //Đơn từ
-router.post('/leave-request',upload.single('attachment'),employeeController.createRequest);
-router.get('/leave-request/:id', employeeController.getMyRequests);
-router.get('/overtime-request/:id', employeeController.getMyOvertimeRequests);
-router.post('/overtime-request', employeeController.createOvertimeRequest);
+router.post('/leave-request', authenticateToken, upload.single('attachment'), employeeController.createRequest);
+// Dùng authenticateToken để đảm bảo data isolation: mỗi NHÂN VIÊN chỉ thấy đơn của chính mình (req.user.id từ JWT)
+router.get('/leave-request/my', authenticateToken, employeeController.getMyRequests);
+router.get('/overtime-request/my', authenticateToken, employeeController.getMyOvertimeRequests);
+router.post('/overtime-request', authenticateToken, employeeController.createOvertimeRequest);
 
 router.get('/approvers/:id', employeeController.getApprovers);
 
-router.post('/attendance-explanation-request',upload.single('file'),employeeController.createExplanationRequest);
+router.post('/attendance-explanation-request', authenticateToken, upload.single('file'), employeeController.createExplanationRequest);
 
-router.get('/attendance-explanation-request/:id',employeeController.getMyExplanationRequests);
+router.get('/attendance-explanation-request/my', authenticateToken, employeeController.getMyExplanationRequests);
 
 
 

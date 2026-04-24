@@ -16,6 +16,8 @@ import { employeeService } from "../../services/employeeService";
 
 import "./Requests.css";
 
+const today = new Date().toISOString().split("T")[0];
+
 const Requests = () => {
   const fileRef = useRef();
   const [requests, setRequests] = useState([]);
@@ -209,7 +211,7 @@ const calculateTotalDays = (start, end) => {
   if (!user?.id) return;
 
   employeeService
-    .getLeaveRequests(user.id)
+    .getLeaveRequests()
     .then((res) => {
       const data = res?.data || res || [];
       setRequests(data);
@@ -223,7 +225,7 @@ const calculateTotalDays = (start, end) => {
   if (!user?.id) return;
 
   employeeService
-    .getLeaveRequests(user.id)
+    .getLeaveRequests()
     .then((res) => {
       console.log("DATA:", res);
       setRequests(res?.data || res || []);
@@ -339,22 +341,22 @@ today.setHours(0, 0, 0, 0);
 const start = new Date(form.startDate);
 const end = new Date(form.endDate);
 
-// 1. Ngày bắt đầu phải > ngày hiện tại
-if (start <= today) {
+// 1. Không được chọn ngày trong quá khứ
+if (new Date(form.startDate) < new Date(today)) {
   setShowConfirmSubmit(false);
   setNotification({
-    message: "Ngày bắt đầu phải lớn hơn ngày hiện tại!",
+    message: "Lỗi logic: Không được chọn ngày trong quá khứ!",
     type: "error",
   });
   setTimeout(() => setNotification({ message: "", type: "" }), 3000);
   return;
 }
 
-// 2. Ngày kết thúc phải > ngày bắt đầu
+// 2. Ngày kết thúc phải >= ngày bắt đầu (cho phép nghỉ 1 ngày)
 if (end < start) {
   setShowConfirmSubmit(false);
   setNotification({
-    message: "Ngày kết thúc phải lớn hơn ngày bắt đầu!",
+    message: "Ngày kết thúc không được trước ngày bắt đầu!",
     type: "error",
   });
   setTimeout(() => setNotification({ message: "", type: "" }), 3000);
@@ -444,7 +446,6 @@ if (isOverlapping(form.startDate, form.endDate)) {
 }
 
   const payload = new FormData();
-  payload.append("userId", user.id);
   payload.append("leave_type", form.type);
   payload.append("start_datetime", form.startDate);
   payload.append("end_datetime", form.endDate);
@@ -467,7 +468,7 @@ if (isOverlapping(form.startDate, form.endDate)) {
     handleCancel();
 
     // 4. Reload lại danh sách đơn để cập nhật UI
-    const res = await employeeService.getLeaveRequests(user.id);
+    const res = await employeeService.getLeaveRequests();
     const data = res?.data || res || [];
     setRequests(data);
     setRecentRequests(data.slice(0, 3));
@@ -609,19 +610,18 @@ const isOverlapping = (newStart, newEnd) => {
                 type="date"
                 className="input-option"
                 value={form.startDate}
-                min={(() => {
-                  const d = new Date();
-                  d.setDate(d.getDate() + 1); // ngày mai
-                  return d.toISOString().split("T")[0];
-                })()}
+                min={today}
                 max={(() => {
                   const d = new Date();
                   d.setDate(d.getDate() + 30); // tối đa 30 ngày
                   return d.toISOString().split("T")[0];
                 })()}
-                onChange={(e) =>
-                  setForm({ ...form, startDate: e.target.value })
-                }
+                onChange={(e) => {
+                  const newStart = e.target.value;
+                  // Nếu endDate đang nhỏ hơn startDate mới → tự đặt lại bằng startDate mới
+                  const newEnd = form.endDate && form.endDate < newStart ? newStart : form.endDate;
+                  setForm({ ...form, startDate: newStart, endDate: newEnd });
+                }}
               />
             </div>
 
@@ -631,21 +631,16 @@ const isOverlapping = (newStart, newEnd) => {
                 type="date"
                 className="input-option"
                 value={form.endDate}
-                min={form.startDate || (() => {
-                  const d = new Date();
-                  d.setDate(d.getDate() + 1);
-                  return d.toISOString().split("T")[0];
-                })()}
+                min={form.startDate || today}
                 max={(() => {
                   if (!form.startDate) return "";
-
                   const d = new Date(form.startDate);
                   d.setDate(d.getDate() + 30);
                   return d.toISOString().split("T")[0];
                 })()}
-                onChange={(e) =>
-                  setForm({ ...form, endDate: e.target.value })
-                }
+                onChange={(e) => {
+                  setForm({ ...form, endDate: e.target.value });
+                }}
               />
             </div>
           </div>
@@ -990,14 +985,23 @@ const isOverlapping = (newStart, newEnd) => {
                       </span>
                     </div>
 
-                    <a
-                      href={`http://localhost:5000/uploads/${selectedRequest.attachment}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="file-view-btn"
-                    >
-                      Xem
-                    </a>
+                    <div className="file-actions">
+                      <a
+                        href={`http://localhost:5000/uploads/${selectedRequest.attachment}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="file-view-btn"
+                      >
+                        Xem
+                      </a>
+                      <a
+                        href={`http://localhost:5000/uploads/${selectedRequest.attachment}`}
+                        download
+                        className="file-download-btn"
+                      >
+                        Tải xuống
+                      </a>
+                    </div>
                   </div>
                 </div>
               )}

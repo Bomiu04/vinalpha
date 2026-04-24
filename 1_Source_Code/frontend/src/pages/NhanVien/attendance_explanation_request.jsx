@@ -17,6 +17,8 @@ import { GoBlocked } from "react-icons/go";
 import { useLocation } from "react-router-dom";
 import './ae_request.css'
 
+const today = new Date().toISOString().split('T')[0];
+
 // 1. SỬA TÊN COMPONENT VIẾT HOA CHỮ CÁI ĐẦU
 const AttendanceExplanationRequest = () => {
 
@@ -71,6 +73,13 @@ useEffect(() => {
 }, [user?.id]);
 
 const handleSubmit = async () => {
+  if (new Date(form.date) < new Date(today)) {
+    setShowConfirmSubmit(false);
+    setNotification({ message: "Lỗi logic: Không được chọn ngày trong quá khứ!", type: "error" });
+    setTimeout(() => setNotification({ message: "", type: "" }), 3000);
+    return;
+  }
+
   if (!form.date && !approverId && !form.type && !form.checkin &&!form.checkout && !(form.reason || "").trim()) {
     setShowConfirmSubmit(false);
     setNotification({ message: "Vui lòng nhập thông tin!", type: "error" });
@@ -225,7 +234,6 @@ const handleSubmit = async () => {
 
   const formData = new FormData();
 
-  formData.append("userId", user.id);
   formData.append("attendance_date", form.date);
   formData.append("explanation_type", form.type);
   formData.append("proposed_check_in", form.checkin);
@@ -249,7 +257,7 @@ if (file && file.size > MAX_SIZE) {
 
   try {
     await employeeService.createExplanationRequest(formData);
-    const res = await employeeService.getExplanationRequests(user.id);
+    const res = await employeeService.getExplanationRequests();
     const data = res?.data || res || [];
     setRequests(data);
     setRecentRequests(data.slice(0, 3));
@@ -264,8 +272,7 @@ if (file && file.size > MAX_SIZE) {
       setNotification("");
     }, 3000);
 
-  } catch (err) {
-    console.error(err.response?.data || err);
+  } catch (err) {   
     setNotification({ message: "Gửi thất bại!", type: "error" });
     setTimeout(() => setNotification({ message: "", type: "" }), 3000);
   }
@@ -308,7 +315,7 @@ useEffect(() => {
   if (!state) return;
 
   const { date, checkIn, checkOut, type } = state;
-
+// eslint-disable-next-line react-hooks/set-state-in-effect
   setForm((prev) => ({
     ...prev,
     date: date ? date.split("T")[0] : "",
@@ -358,7 +365,7 @@ useEffect(() => {
   if (!user?.id) return;
 
   employeeService
-    .getExplanationRequests(user.id)
+    .getExplanationRequests()
     .then((res) => {
       const data = res?.data || res || [];
       setRequests(data);
@@ -424,6 +431,7 @@ const filteredRequests = filterMonth
                                 <input
                                     type="date"
                                     className="input-option"
+                                    min={today}
                                     value={form.date}
                                     onChange={(e) =>
                                         setForm({ ...form, date: e.target.value })
@@ -851,14 +859,23 @@ const filteredRequests = filterMonth
         </span>
       </div>
 
-      <a
-        href={`http://localhost:5000/uploads/${selectedRequest.attachment_url}`}
-        target="_blank"
-        rel="noreferrer"
-        className="file-view-btn"
-      >
-        Xem
-      </a>
+      <div className="file-actions">
+        <a
+          href={`http://localhost:5000/uploads/${selectedRequest.attachment_url}`}
+          target="_blank"
+          rel="noreferrer"
+          className="file-view-btn"
+        >
+          Xem
+        </a>
+        <a
+          href={`http://localhost:5000/uploads/${selectedRequest.attachment_url}`}
+          download
+          className="file-download-btn"
+        >
+          Tải xuống
+        </a>
+      </div>
     </div>
   </div>
 )}

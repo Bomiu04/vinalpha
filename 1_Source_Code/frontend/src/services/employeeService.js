@@ -22,16 +22,16 @@ export const employeeService = {
   return axiosClient.post('/employee/overtime-request', data);
   },
 
-  getOvertimeRequests: (employeeId) => {
-  return axiosClient.get(`/employee/overtime-request/${employeeId}`);
+  getOvertimeRequests: () => {
+  return axiosClient.get('/employee/overtime-request/my');
   },
 
   getContract: (employeeId) => {
     return axiosClient.get(`/employee/contract/${employeeId}`);
   },
 
-  getLeaveRequests: (employeeId) => {
-    return axiosClient.get(`/employee/leave-request/${employeeId}`);
+  getLeaveRequests: () => {
+    return axiosClient.get('/employee/leave-request/my');
   },
 
   createLeaveRequest: (formData) => {
@@ -54,9 +54,9 @@ export const employeeService = {
   );
 },
 
-getExplanationRequests: (employeeId) => {
+getExplanationRequests: () => {
   return axiosClient.get(
-    `/employee/attendance-explanation-request/${employeeId}`
+    '/employee/attendance-explanation-request/my'
   );
 },
 
