@@ -576,6 +576,35 @@ exports.createEmployee = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc!' });
     }
 
+    // --- 🛑 KIỂM TRA TRÙNG LẶP USERNAME & EMAIL ---
+    const existingUser = await db.query(
+      `SELECT id FROM user_account WHERE username = $1`,
+      { bind: [username], type: QueryTypes.SELECT }
+    );
+
+    if (existingUser && existingUser.length > 0) {
+      await t.rollback();
+      return res.status(400).json({ 
+        success: false, 
+        message: "Tên đăng nhập (Username) này đã tồn tại trên hệ thống. Vui lòng chọn tên khác!" 
+      });
+    }
+
+    if (personal_email || work_email) {
+      const existingEmail = await db.query(
+        `SELECT id FROM employee WHERE personal_email = $1 OR work_email = $2`,
+        { bind: [personal_email || null, work_email || null], type: QueryTypes.SELECT }
+      );
+      if (existingEmail && existingEmail.length > 0) {
+        await t.rollback();
+        return res.status(400).json({ 
+          success: false, 
+          message: "Email (Cá nhân hoặc Công việc) này đã tồn tại trên hệ thống!" 
+        });
+      }
+    }
+    // -------------------------------------
+
     // 1. Lấy thông tin chức vụ
     const position = await Position.findByPk(position_id, { transaction: t });
     if (!position) {

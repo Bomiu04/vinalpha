@@ -45,6 +45,33 @@ const createUser = async (req, res) => {
   }
   // ------------------------------------------------
 
+  // --- 🛑 KIỂM TRA TRÙNG LẶP USERNAME & EMAIL ---
+  const existingUser = await db.query(
+    `SELECT id FROM user_account WHERE username = $1`,
+    { bind: [username], type: db.QueryTypes.SELECT }
+  );
+
+  if (existingUser && existingUser.length > 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: "Tên đăng nhập (Username) này đã tồn tại trên hệ thống. Vui lòng chọn tên khác!" 
+    });
+  }
+
+  if (email) {
+    const existingEmail = await db.query(
+      `SELECT id FROM employee WHERE personal_email = $1 OR work_email = $1`,
+      { bind: [email], type: db.QueryTypes.SELECT }
+    );
+    if (existingEmail && existingEmail.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email này đã tồn tại trên hệ thống. Vui lòng chọn email khác!" 
+      });
+    }
+  }
+  // -------------------------------------
+
   const transaction = await db.transaction();
 
   try {

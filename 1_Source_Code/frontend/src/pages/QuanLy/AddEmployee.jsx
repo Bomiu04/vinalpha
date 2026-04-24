@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, Loader2, User, CreditCard, Briefcase, ShieldCheck, MapPin, Building2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, User, CreditCard, Briefcase, ShieldCheck, MapPin, Building2, UserPlus, Hash, Phone, Mail, Camera, UploadCloud, Lock, ChevronDown } from 'lucide-react';
 import { managerEmployeeService } from '../../services/managerEmployeeService';
 import axiosClient from '../../api/axiosClient';
 
@@ -152,211 +152,215 @@ export default function AddEmployee({ onBack, onSaveSuccess }) {
   if (loading) {
     return (
       <div className="bg-slate-50 min-h-[500px] flex flex-col items-center justify-center">
-        <Loader2 className="animate-spin text-indigo-500 mb-4" size={40} />
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Đang khởi tạo form...</p>
+        <Loader2 className="animate-spin text-blue-500 mb-4" size={40} />
+        <p className="text-slate-400 font-medium text-sm">Đang tải dữ liệu hệ thống...</p>
       </div>
     );
   }
 
   return (
     <div className="bg-slate-50 min-h-screen font-sans pb-20">
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 md:p-10 max-w-6xl mx-auto mt-6">
+      <div className="max-w-6xl mx-auto px-4 pt-8">
         
-        {/* HEADER */}
-        <div className="flex justify-between items-center mb-10 pb-8 border-b border-slate-100">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <button type="button" onClick={onBack} className="w-12 h-12 flex items-center justify-center rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition-all border border-slate-100 hover:scale-105 active:scale-95">
-              <ArrowLeft size={20} />
-            </button>
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+              <UserPlus size={24} />
+            </div>
             <div>
-              <h1 className="text-2xl font-black text-slate-800 tracking-tight">Thêm <span className="text-indigo-600">Nhân sự mới</span></h1>
-              <p className="text-sm text-slate-400 font-medium">Hệ thống quản lý định danh và phân quyền nội bộ</p>
+              <h1 className="text-2xl font-bold text-slate-800">Thêm Nhân Viên Mới</h1>
+              <p className="text-sm text-slate-500">Điền đầy đủ thông tin bên dưới để khởi tạo hồ sơ nhân sự mới trong hệ thống.</p>
             </div>
           </div>
+          <button 
+            type="button" 
+            onClick={onBack} 
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors bg-white border border-slate-200 rounded-lg shadow-sm"
+          >
+            <ArrowLeft size={16} /> Danh sách nhân sự
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-12">
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          {/* BLOCK 1: TÀI KHOẢN & ĐỊNH DANH */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1">
-               <h3 className="text-lg font-black text-slate-800 mb-2 flex items-center gap-2">
-                 <ShieldCheck className="text-indigo-500" size={22} />
-                 Xác thực hệ thống
-               </h3>
-               <p className="text-sm text-slate-400 leading-relaxed font-medium">Cấp phát tài khoản đăng nhập và mã số định danh duy nhất cho nhân viên trên toàn hệ thống.</p>
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-6 text-blue-600 font-semibold text-sm">
+              <ShieldCheck size={18} />
+              <span>Thông tin tài khoản</span>
             </div>
-            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-8 rounded-[32px] border border-slate-100">
-               <div className="flex flex-col gap-2">
-                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Mã định danh (Temp)</label>
-                 <div className="px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm text-indigo-600 font-black flex items-center gap-2 shadow-sm">
-                   {tempEmpCode}
-                 </div>
-               </div>
-               <div className="flex flex-col gap-2">
-                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Username <span className="text-rose-500">*</span></label>
-                 <input 
-                    type="text" name="username" value={formData.username || ''} onChange={handleChange} placeholder="VD: nguyenvan_a" required
-                    className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
-                  />
-               </div>
-               <div className="flex flex-col gap-2 md:col-span-2">
-                 <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Mật khẩu khởi tạo <span className="text-rose-500">*</span></label>
-                 <input 
-                    type="text" name="password" value={formData.password || ''} onChange={handleChange} placeholder="Nhập mật khẩu an toàn..." required
-                    className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
-                  />
-               </div>
-            </div>
-          </section>
-
-          {/* BLOCK 2: CƠ CẤU TỔ CHỨC (CASCADING DROPDOWNS) */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-1">
-               <h3 className="text-lg font-black text-slate-800 mb-2 flex items-center gap-2">
-                 <Briefcase className="text-indigo-500" size={22} />
-                 Vị trí công tác
-               </h3>
-               <p className="text-sm text-slate-400 leading-relaxed font-medium">Bố trí nhân viên vào sơ đồ tổ chức. Một số chức vụ quản lý sẽ bị giới hạn nếu bộ phận đã có người đảm nhiệm.</p>
-            </div>
-            <div className="lg:col-span-2 space-y-6 bg-indigo-50/30 p-8 rounded-[32px] border border-indigo-100">
-               {/* Chi nhánh -> Phòng ban */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                      <MapPin size={14} className="text-indigo-400" /> Chi nhánh
-                    </label>
-                    <select 
-                      name="branch_id" value={formData.branch_id} onChange={handleBranchChange} 
-                      disabled={user?.role === 'MANAGER'}
-                      className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all outline-none disabled:bg-slate-100 cursor-pointer"
-                    >
-                      <option value="">-- Chọn chi nhánh --</option>
-                      {options.branches.map(b => <option key={b.id} value={b.id}>{b.branch_name}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                      <Building2 size={14} className="text-indigo-400" /> Phòng ban
-                    </label>
-                    <select 
-                      name="department_id" value={formData.department_id} onChange={handleDeptChange}
-                      disabled={user?.role === 'MANAGER' || !formData.branch_id}
-                      className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all outline-none disabled:bg-slate-50 cursor-pointer"
-                    >
-                      <option value="">-- Chọn phòng ban --</option>
-                      {options.departments.map(d => <option key={d.id} value={d.id}>{d.department_name}</option>)}
-                    </select>
-                  </div>
-               </div>
-
-               {/* Chức vụ (Với logic Manager Lock) */}
-               <div className="flex flex-col gap-2">
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Chức vụ chuyên môn</label>
-                  <select 
-                    name="position_id" value={formData.position_id} onChange={handleChange}
-                    disabled={!formData.department_id || loadingCascade}
-                    className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all outline-none disabled:bg-slate-50 cursor-pointer"
-                  >
-                    <option value="">-- Chọn chức vụ --</option>
-                    {filteredPositions.map(pos => {
-                      // Logic Manager Lock: Nếu bộ phận đã có manager, disable các chức vụ có level 'manager'
-                      const isManagerRole = pos.level === 'manager';
-                      const isDisabled = isManagerRole && deptManagerInfo.hasManager;
-                      
-                      return (
-                        <option key={pos.id} value={pos.id} disabled={isDisabled}>
-                          {pos.position_name} {isDisabled ? `(Đã có TP: ${deptManagerInfo.managerName})` : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  {deptManagerInfo.hasManager && (
-                    <div className="flex items-center gap-2 text-amber-600 font-bold text-[10px] bg-amber-50 p-3 rounded-xl border border-amber-100">
-                       <AlertCircle size={14} />
-                       Lưu ý: Bộ phận này đã có Trưởng phòng nên vị trí này sẽ bị khóa.
-                    </div>
-                  )}
-               </div>
-
-               {/* Quản lý trực tiếp */}
-               <div className="flex flex-col gap-2">
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest font-black">Người quản lý trực tiếp</label>
-                  <select 
-                    name="direct_manager_id" value={formData.direct_manager_id} onChange={handleChange}
-                    disabled={!formData.department_id || loadingCascade}
-                    className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all outline-none cursor-pointer"
-                  >
-                    <option value="">-- Chọn quản lý --</option>
-                    {filteredManagers.map(mgr => (
-                      <option key={mgr.id} value={mgr.id}>{mgr.full_name}</option>
-                    ))}
-                  </select>
-               </div>
-            </div>
-          </section>
-
-          {/* BLOCK 3: HỒ SƠ CÁ NHÂN */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-             <div className="lg:col-span-1">
-                <h3 className="text-lg font-black text-slate-800 mb-2 flex items-center gap-2">
-                  <User className="text-indigo-500" size={22} />
-                  Hồ sơ nhân thân
-                </h3>
-                <p className="text-sm text-slate-400 leading-relaxed font-medium">Thông tin cơ bản phục vụ việc quản lý hồ sơ và các chế độ bảo hiểm, phúc lợi xã hội.</p>
-             </div>
-             <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-8 rounded-[32px] border border-slate-100">
-                <InputField label="Họ và tên" name="full_name" value={formData.full_name} onChange={handleChange} required />
-                <InputField label="Số CCCD/Passport" name="identity_card_number" value={formData.identity_card_number} onChange={handleChange} />
-                <InputField label="Ngày sinh" name="date_of_birth" type="date" value={formData.date_of_birth} onChange={handleChange} />
-                
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Giới tính</label>
-                  <select name="gender" value={formData.gender} onChange={handleChange} className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold outline-none cursor-pointer">
-                    <option value="true">Nam</option>
-                    <option value="false">Nữ</option>
-                  </select>
+            
+            <div className="flex flex-col md:flex-row items-center gap-8">
+              <div className="relative group">
+                <div className="w-32 h-32 bg-slate-100 rounded-full flex items-center justify-center border-4 border-white shadow-md overflow-hidden">
+                  <User size={64} className="text-slate-300" />
                 </div>
-
-                <InputField label="Số điện thoại" name="phone_number" value={formData.phone_number} onChange={handleChange} />
-                <InputField label="Email cá nhân" name="personal_email" type="email" value={formData.personal_email} onChange={handleChange} />
-                <div className="md:col-span-2 space-y-4">
-                   <InputField label="Địa chỉ cư trú hiện tại" name="address" value={formData.address} onChange={handleChange} />
-                   <InputField label="Email Công tác" name="work_email" type="email" value={formData.work_email} onChange={handleChange} placeholder="VD: an.nv@company.com" />
+                <div className="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                  <Camera size={24} className="text-white" />
                 </div>
-             </div>
-          </section>
-
-          {/* CHECKBOX GỬI EMAIL & SUBMIT */}
-          <div className="pt-10 border-t border-slate-100 flex flex-col gap-8">
-             <div className="bg-indigo-600 p-6 rounded-[32px] flex items-center gap-4 shadow-xl shadow-indigo-100 border border-indigo-700">
-                <div className="relative">
-                  <input 
-                    type="checkbox" id="send_email" name="send_email"
-                    checked={formData.send_email} onChange={handleChange}
-                    className="peer w-6 h-6 rounded-xl border-none text-white focus:ring-0 cursor-pointer accent-emerald-500"
-                  />
-                </div>
-                <label htmlFor="send_email" className="text-sm font-bold text-white cursor-pointer select-none">
-                  Tự động gửi thông tin tài khoản & mật khẩu qua Email nhân sự sau khi lưu
-                </label>
-             </div>
-
-             <div className="flex justify-end items-center gap-4">
-                <button 
-                  type="button" onClick={onBack} 
-                  className="px-8 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
-                >
-                  Hủy bỏ
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Chọn file ảnh</span>
+                <button type="button" className="flex items-center gap-2 px-6 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
+                  <UploadCloud size={18} className="text-blue-500" />
+                  Nhập Ảnh Avatar
                 </button>
-                <button 
-                  type="submit" disabled={saving} 
-                  className="flex items-center gap-3 px-10 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-indigo-100 disabled:opacity-70"
-                >
-                  {saving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-                  Hoàn tất & Lưu hồ sơ
-                </button>
-             </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-6 text-blue-600 font-semibold text-sm">
+              <ShieldCheck size={18} />
+              <span>Thông tin tài khoản</span>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <InputField 
+                label="Mã nhân viên" 
+                name="employee_code" 
+                value={tempEmpCode} 
+                readOnly 
+                icon={Hash}
+              />
+              <InputField 
+                label="Tên đăng nhập (Username)" 
+                name="username" 
+                value={formData.username} 
+                onChange={handleChange} 
+                placeholder="Nhập user_name..." 
+                required 
+                icon={User}
+              />
+              <InputField 
+                label="Mật khẩu (Password)" 
+                name="password" 
+                type="text" 
+                value={formData.password} 
+                onChange={handleChange} 
+                placeholder="Nhập mật khẩu..." 
+                required 
+                icon={Lock}
+              />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-6 text-blue-600 font-semibold text-sm">
+              <User size={18} />
+              <span>Thông tin cá nhân</span>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <InputField label="Họ và tên nhân viên" name="full_name" value={formData.full_name} onChange={handleChange} required placeholder="Ví dụ: Nguyễn Văn A" />
+              <InputField label="Số điện thoại" name="phone_number" value={formData.phone_number} onChange={handleChange} required placeholder="Ví dụ: 0912 345 678" icon={Phone} />
+              <InputField label="Email liên hệ" name="personal_email" type="email" value={formData.personal_email} onChange={handleChange} required placeholder="Ví dụ: nguyenvana@company.com" icon={Mail} />
+              <InputField label="CCCD" name="identity_card_number" value={formData.identity_card_number} onChange={handleChange} required placeholder="Ví dụ: 012345678901" />
+              <InputField label="Ngày sinh" name="date_of_birth" type="date" value={formData.date_of_birth} onChange={handleChange} required />
+              
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-slate-700">Giới tính <span className="text-rose-500">*</span></label>
+                <div className="flex items-center gap-6 h-[42px] px-4 bg-slate-50 border border-slate-200 rounded-lg">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="gender" value="true" checked={formData.gender === 'true' || formData.gender === true} onChange={handleChange} className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500" />
+                    <span className="text-sm text-slate-600 font-medium">Nam</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="gender" value="false" checked={formData.gender === 'false' || formData.gender === false} onChange={handleChange} className="w-4 h-4 text-blue-600 border-slate-300 focus:ring-blue-500" />
+                    <span className="text-sm text-slate-600 font-medium">Nữ</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="md:col-span-2">
+                <InputField label="Địa chỉ cư trú hiện tại" name="address" value={formData.address} onChange={handleChange} placeholder="Nhập địa chỉ chi tiết..." />
+              </div>
+
+              <InputField label="Ngân hàng" name="bank_name" value={formData.bank_name} onChange={handleChange} placeholder="Ví dụ: Vietcombank" icon={Building2} />
+              <InputField label="Số tài khoản" name="bank_account_number" value={formData.bank_account_number} onChange={handleChange} placeholder="Nhập số tài khoản..." icon={CreditCard} />
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-6 text-blue-600 font-semibold text-sm">
+              <Briefcase size={18} />
+              <span>Thông tin công việc</span>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <SelectField 
+                label="Chi nhánh" name="branch_id" value={formData.branch_id} onChange={handleBranchChange} 
+                options={options.branches.map(b => ({ value: b.id, label: b.branch_name }))}
+                disabled={user?.role === 'MANAGER'}
+                icon={MapPin}
+              />
+              <SelectField 
+                label="Phòng ban" name="department_id" value={formData.department_id} onChange={handleDeptChange}
+                options={options.departments.map(d => ({ value: d.id, label: d.department_name }))}
+                disabled={user?.role === 'MANAGER' || !formData.branch_id}
+                icon={Building2}
+              />
+              <SelectField 
+                label="Chức vụ chuyên môn" name="position_id" value={formData.position_id} onChange={handleChange}
+                options={filteredPositions.map(pos => {
+                  const isManagerRole = pos.level === 'manager';
+                  const isDisabled = isManagerRole && deptManagerInfo.hasManager;
+                  return { 
+                    value: pos.id, 
+                    label: pos.position_name + (isDisabled ? ` (Đã có TP: ${deptManagerInfo.managerName})` : ''),
+                    disabled: isDisabled 
+                  };
+                })}
+                disabled={!formData.department_id || loadingCascade}
+              />
+              <SelectField 
+                label="Người quản lý trực tiếp" name="direct_manager_id" value={formData.direct_manager_id} onChange={handleChange}
+                options={filteredManagers.map(mgr => ({ value: mgr.id, label: mgr.full_name }))}
+                disabled={!formData.department_id || loadingCascade}
+                icon={User}
+              />
+              <SelectField 
+                label="Loại hợp đồng" name="contract_type" value={formData.contract_type} onChange={handleChange}
+                options={[
+                  { value: 'probation', label: 'Thử việc' },
+                  { value: 'official', label: 'Chính thức' },
+                  { value: 'part_time', label: 'Bán thời gian' }
+                ]}
+              />
+              <InputField label="Ngày gia nhập" name="join_date" type="date" value={formData.join_date} onChange={handleChange} />
+              <div className="md:col-span-2">
+                <InputField label="Email Công tác" name="work_email" type="email" value={formData.work_email} onChange={handleChange} placeholder="Ví dụ: an.nv@company.com" icon={Mail} />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 py-4 px-6 bg-blue-50 border border-blue-100 rounded-2xl">
+            <input 
+              type="checkbox" id="send_email" name="send_email"
+              checked={formData.send_email} onChange={handleChange}
+              className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            <label htmlFor="send_email" className="text-sm font-semibold text-blue-800 cursor-pointer select-none">
+              Tự động gửi thông tin tài khoản & mật khẩu qua Email nhân sự sau khi lưu
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-4 pt-6 border-t border-slate-200">
+            <button 
+              type="button" 
+              onClick={onBack} 
+              className="px-6 py-2.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-all active:scale-95"
+            >
+              Hủy bỏ
+            </button>
+            <button 
+              type="submit" 
+              disabled={saving} 
+              className="flex items-center gap-2 px-8 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm transition-all shadow-md active:scale-95 disabled:opacity-70"
+            >
+              {saving ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />}
+              Thêm nhân viên
+            </button>
           </div>
         </form>
       </div>
@@ -364,14 +368,55 @@ export default function AddEmployee({ onBack, onSaveSuccess }) {
   );
 }
 
-const InputField = ({ label, name, type = "text", value, onChange, placeholder, required }) => (
-  <div className="flex flex-col gap-2">
-    <label className="text-xs font-black text-slate-500 uppercase tracking-widest">
+const InputField = ({ label, name, type = "text", value, onChange, placeholder, required, readOnly, icon: Icon }) => (
+  <div className="flex flex-col gap-1.5 w-full">
+    <label className="text-sm font-medium text-slate-700">
       {label} {required && <span className="text-rose-500">*</span>}
     </label>
-    <input 
-      type={type} name={name} value={value || ''} onChange={onChange} placeholder={placeholder} required={required}
-      className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:border-indigo-400 focus:ring-4 focus:ring-indigo-50 transition-all outline-none"
-    />
+    <div className="relative">
+      {Icon && (
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+          <Icon size={16} />
+        </div>
+      )}
+      <input 
+        type={type} 
+        name={name} 
+        value={value || ''} 
+        onChange={onChange} 
+        placeholder={placeholder} 
+        required={required}
+        readOnly={readOnly}
+        className={`w-full ${Icon ? 'pl-10' : 'px-4'} py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm transition-all outline-none focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 ${readOnly ? 'bg-blue-50 border-blue-100 text-blue-600 font-bold cursor-not-allowed' : 'text-slate-600 font-medium'}`}
+      />
+    </div>
+  </div>
+);
+
+const SelectField = ({ label, name, value, onChange, options, disabled, icon: Icon }) => (
+  <div className="flex flex-col gap-1.5 w-full">
+    <label className="text-sm font-medium text-slate-700">{label}</label>
+    <div className="relative">
+      {Icon && (
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+          <Icon size={16} />
+        </div>
+      )}
+      <select 
+        name={name} 
+        value={value || ''} 
+        onChange={onChange} 
+        disabled={disabled}
+        className={`w-full appearance-none ${Icon ? 'pl-10' : 'px-4'} pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 font-medium transition-all outline-none focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed`}
+      >
+        <option value="">-- Chọn {label.toLowerCase()} --</option>
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value} disabled={opt.disabled}>{opt.label}</option>
+        ))}
+      </select>
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+        <ChevronDown size={16} />
+      </div>
+    </div>
   </div>
 );
