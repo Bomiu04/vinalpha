@@ -3,7 +3,7 @@ const { Op, QueryTypes } = require('sequelize');
 const { Employee, AIAlert, UserAccount, sequelize, Position, Department, Attendance, HRDecision } = require('../models');
 const { haversineDistanceMeters } = require('../utils/geoUtils');
 
-// Ollama client — dùng 'localhost' thay vì '127.0.0.1' để ổn định hơn trên Windows
+
 const OLLAMA_TIMEOUT_MS = 5 * 60 * 1000;
 const ollama = new Ollama({ host: 'http://localhost:11434' });
 
@@ -265,8 +265,6 @@ exports.analyzeTurnoverRisk = async (req, res) => {
     const alertMap = {};
     existingAlerts.forEach(a => { alertMap[a.employee_id] = a; });
 
-    const employeesToProcess = employeeStats; 
-    
     const employeesToProcess = employeeStats.filter(s => {
       const existing = alertMap[s.id];
       if (!existing) return true;
