@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   AlertCircle, CheckCircle2, ArrowRight, Loader2, Sparkles, 
   ShieldAlert, History, User, MapPin, RefreshCw, Search,
-  Medal, TrendingUp, TrendingDown, AlertTriangle, Filter, Clock
+  Medal, TrendingUp, TrendingDown, AlertTriangle, Filter, Clock,
+  Info, X ,BrainCircuit
 } from 'lucide-react';
 import { recommendationService } from '../../services/recommendationService';
 
@@ -16,6 +17,9 @@ export default function RecommendationList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [riskFilter, setRiskFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+
+  // <-- STATE ĐIỀU KHIỂN MODAL THÔNG TIN -->
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   useEffect(() => {
     fetchRecommendations();
@@ -36,11 +40,9 @@ export default function RecommendationList() {
   };
 
   const handleProcess = (item) => {
-    // Chuyển sang trang Khen thưởng & Kỷ luật và truyền dữ liệu điền sẵn
     navigate('/QuanLy/rewards-discipline', { state: { prefillData: item.prefill } });
   };
 
-  // Tính toán số liệu thống kê thực tế
   const statsSummary = useMemo(() => {
     return {
       total: recommendations.length,
@@ -50,7 +52,6 @@ export default function RecommendationList() {
     };
   }, [recommendations]);
 
-  // Lọc danh sách hiển thị
   const filteredList = useMemo(() => {
     return recommendations.filter(item => {
       const matchName = item.employee_name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -60,7 +61,6 @@ export default function RecommendationList() {
     });
   }, [recommendations, searchTerm, riskFilter, typeFilter]);
 
-  // Helper để lấy text hiển thị thống kê chính trên card
   const getMainStat = (item) => {
     const s = item.stats || {};
     if (item.recommendation_type === 'reward') {
@@ -84,7 +84,7 @@ export default function RecommendationList() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8 font-sans w-full">
+    <div className="min-h-screen bg-[#f8fafc] p-4 md:p-8 font-sans w-full relative">
       <div className="max-w-5xl mx-auto flex flex-col gap-6">
         
         {/* HEADER SECTION */}
@@ -94,7 +94,17 @@ export default function RecommendationList() {
               <Sparkles size={28} strokeWidth={2} />
             </div>
             <div>
-              <h1 className="text-[22px] font-bold text-slate-800 tracking-tight">Đề xuất & Cảnh báo AI</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-[22px] font-bold text-slate-800 tracking-tight">Đề xuất & Cảnh báo AI</h1>
+                {/* <-- NÚT INFO ĐƯỢC THÊM VÀO ĐÂY --> */}
+                <button 
+                  onClick={() => setShowInfoModal(true)}
+                  className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-full transition-all"
+                  title="Tiêu chí đánh giá"
+                >
+                  <Info size={20} strokeWidth={2.5} />
+                </button>
+              </div>
               <p className="text-slate-500 text-[13px] mt-1 font-medium">
                 Dựa trên phân tích chuyên cần, rủi ro nghỉ việc và thành tích của nhân viên.
               </p>
@@ -213,13 +223,11 @@ export default function RecommendationList() {
                   key={item.id} 
                   className="bg-white rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row items-center py-4 pr-5 pl-2 relative overflow-hidden group"
                 >
-                  {/* Dải màu đánh dấu bên trái (Left Accent Border) */}
                   <div className={`absolute left-0 top-0 bottom-0 w-[6px] ${
                     item.risk_level === 'HIGH' ? 'bg-rose-500' : 
                     item.risk_level === 'MEDIUM' ? 'bg-amber-400' : 'bg-emerald-400'
                   }`}></div>
 
-                  {/* Left: Icon & Profile */}
                   <div className="flex items-center gap-4 w-full md:w-[300px] shrink-0 pl-4 py-2 md:py-0">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${
                       item.recommendation_type === 'reward' 
@@ -234,10 +242,8 @@ export default function RecommendationList() {
                     </div>
                   </div>
 
-                  {/* Middle: Badges, Stats & Reason */}
                   <div className="flex-1 w-full border-t md:border-t-0 md:border-l border-slate-100 px-6 py-4 md:py-2 flex flex-col justify-center">
                     <div className="flex items-center gap-3 mb-1.5">
-                      {/* Badge Risk */}
                       <span className={`px-2.5 py-0.5 rounded-[6px] text-[10px] font-black uppercase tracking-wider border ${
                         item.risk_level === 'HIGH' 
                           ? 'bg-rose-50 text-rose-600 border-rose-200' : 
@@ -248,12 +254,10 @@ export default function RecommendationList() {
                         {item.risk_level} RISK
                       </span>
                       
-                      {/* Stats */}
                       <span className={`text-[12px] font-bold ${mainStat.isDanger ? 'text-rose-500' : 'text-emerald-600'}`}>
                         {mainStat.text}
                       </span>
 
-                      {/* Extra detail if any */}
                       {item.stats.otHours > 0 && item.recommendation_type === 'reward' && (
                          <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
                             <Clock size={12} /> {item.stats.totalWorkHours}h
@@ -261,14 +265,12 @@ export default function RecommendationList() {
                       )}
                     </div>
                     
-                    {/* Reason Text */}
                     <p className="text-slate-600 text-[13px] line-clamp-2 leading-relaxed font-medium">
                       <span className="font-bold text-slate-700">Lý do: </span>
                       {item.reason}
                     </p>
                   </div>
 
-                  {/* Right: Action Button */}
                   <div className="w-full md:w-auto text-right shrink-0 min-w-[200px] pl-6 md:pl-0 flex flex-col items-end justify-center">
                     <p className="text-[10px] text-slate-400 font-medium mb-2 flex items-center gap-1 opacity-70">
                       Đề xuất bởi: Hệ thống AI
@@ -290,6 +292,91 @@ export default function RecommendationList() {
           </div>
         )}
       </div>
+
+      {/* <-- MODAL THÔNG TIN TIÊU CHÍ (NEW) --> */}
+      {showInfoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <BrainCircuit className="text-purple-600" size={24} />
+                Tiêu chí Đánh giá của AI (Qwen2.5)
+              </h2>
+              <button 
+                onClick={() => setShowInfoModal(false)} 
+                className="text-slate-400 hover:text-rose-500 p-2 rounded-full hover:bg-rose-50 transition-colors"
+              >
+                <X size={20}/>
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <p className="text-[14px] text-slate-600 font-medium leading-relaxed">
+                Hệ thống AI sẽ tự động phân tích dữ liệu chuyên cần, lịch sử vi phạm và giờ làm việc của nhân sự trong <strong className="text-purple-600">30 ngày gần nhất</strong> để đưa ra các đề xuất khách quan nhất.
+              </p>
+
+              <div className="space-y-4">
+                {/* Reward Section */}
+                <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl">
+                  <h3 className="flex items-center gap-2 text-emerald-700 font-bold mb-2">
+                    <Medal size={20} /> Tiêu chí Khen Thưởng (Reward)
+                  </h3>
+                  <ul className="space-y-2 text-[13px] text-slate-600 font-medium">
+                    <li className="flex items-start gap-2">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>
+                      Tỷ lệ đi làm (chuyên cần) đạt mức xuất sắc (thường {'>'}= 95% ngày công chuẩn).
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>
+                      Tuyệt đối <span className="font-bold text-emerald-600">KHÔNG</span> đi trễ, về sớm hay nghỉ không phép.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>
+                      (Tùy chọn) Có số giờ tăng ca (OT) nổi bật, đóng góp tích cực cho tiến độ công ty.
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Discipline Section */}
+                <div className="p-4 bg-rose-50/50 border border-rose-100 rounded-2xl">
+                  <h3 className="flex items-center gap-2 text-rose-700 font-bold mb-2">
+                    <ShieldAlert size={20} /> Tiêu chí Kỷ Luật (Discipline)
+                  </h3>
+                  <ul className="space-y-2 text-[13px] text-slate-600 font-medium">
+                    <li className="flex items-start gap-2">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0"></div>
+                      Bị phát hiện <span className="font-bold text-rose-600">Gian lận GPS</span> (Sử dụng Fake GPS hoặc phần mềm thứ 3 để qua mặt hệ thống).
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0"></div>
+                      Nghỉ <strong className="text-rose-600">không phép</strong> từ 3 ngày trở lên trong tháng.
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-rose-400 shrink-0"></div>
+                      Đi trễ / Về sớm vượt quá mức cho phép (thường {'>'}= 5 lần/tháng).
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
+              <button 
+                onClick={() => setShowInfoModal(false)}
+                className="px-5 py-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-sm font-bold rounded-xl shadow-sm transition-all"
+              >
+                Đã hiểu
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
