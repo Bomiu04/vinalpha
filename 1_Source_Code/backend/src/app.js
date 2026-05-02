@@ -81,6 +81,7 @@ const managementRoutes = require('./routes/managementRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const payrollRoutes = require('./routes/payrollRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 // ================= 4. USE ROUTES =================
 app.use('/api/auth', authRoutes);
@@ -91,6 +92,7 @@ app.use('/api/manager', managementRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/chat', chatRoutes);
 
 // --- ROUTES TEST ---
 app.get('/', (req, res) => {

@@ -15,6 +15,7 @@
 |     🟢     | **Tính năng 1: Dự đoán rủi ro nghỉ việc** | Phân tích chuyên cần, đi trễ, về sớm. Tích hợp Batch Processing & Pre-aggregation. Nâng cấp Nested JSON Output. |
 |     🟢     | **Tính năng 2: Phát hiện gian lận GPS**   | Chạy ngầm (Background task), dùng công thức Haversine đối chiếu tọa độ chi nhánh thực tế (`work_location`).     |
 |     🟢     | **Tính năng 3: HR Decision Assistant**    | Trợ lý tự động đề xuất quyết định Khen thưởng/Kỷ luật dựa trên kết quả phân tích AI. Đã tích hợp vào `getRecommendations`. |
+|     🟢     | **Tính năng 4: HR Chatbot (Employee)**   | Chatbot RAG cho nhân viên tự tra cứu thông tin cá nhân, chấm công, nghỉ phép, quy chế nhân sự. RBAC cứng + Prompt Shielding. |
 
 ---
 
@@ -211,6 +212,8 @@ Activity, Target, ThumbsUp, ThumbsDown, Gauge, CalendarClock, Zap    ← MỚI (
 | `POST` | `/api/ai/analyze-turnover` | `analyzeTurnoverRisk` | Chạy phân tích batch (mất ~15-60s) |
 | `GET` | `/api/ai/alerts` | `getAIAlerts` | Lấy danh sách cảnh báo (có RBAC) |
 | `GET` | `/api/ai/recommendations` | `getRecommendations` | Chuyển đổi alerts → đề xuất KT/KL |
+| `POST` | `/api/chat` | `chatbot.chat` | HR Chatbot — Nhân viên hỏi đáp (RBAC: EMPLOYEE only) |
+| `GET` | `/api/chat/history` | `chatbot.getChatHistory` | Lấy lịch sử chat (RBAC: EMPLOYEE only) |
 
 ---
 
@@ -218,5 +221,6 @@ Activity, Target, ThumbsUp, ThumbsDown, Gauge, CalendarClock, Zap    ← MỚI (
 
 | Ngày | Phiên bản | Thay đổi |
 |---|---|---|
+| 01/05/2026 | **v2.2** | Thêm Tính năng 4: HR Chatbot (Employee). RAG approach — tiêm dữ liệu cá nhân (profile, contract, attendance, leave) vào System Prompt. Bảo mật: RBAC cứng (chỉ EMPLOYEE), Input Validation (giới hạn 1000 ký tự/tin, 20 tin nhắn), Prompt Shielding (regex phát hiện injection, đóng băng system prompt). Lưu lịch sử vào bảng `chat_histories`. API: `POST /api/chat`, `GET /api/chat/history`. |
 | 30/04/2026 | **v2.1** | Đổi model `qwen2:1.5b` → `qwen2.5:3b`. Thêm data: position, department, seniority_months, attendanceRate, totalWorkHours, otHours. Mở rộng JSON schema: risk_score, analysis (key_concerns, positive_signals, behavior_pattern), retention_strategy (action, priority, timeline), suggested_action. Tăng num_ctx 4096→8192, thêm temperature 0.3, giảm BATCH_SIZE 5→3. Nâng cấp frontend modal với Risk Gauge, Concerns/Signals, Behavior Pattern, Retention Cards, Suggested Action. |
 | 29/04/2026 | v2.0 | Tích hợp Batch Processing, Pre-aggregation, Nested JSON Output. |
