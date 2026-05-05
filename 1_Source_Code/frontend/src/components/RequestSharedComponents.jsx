@@ -20,18 +20,36 @@ export const StatusPill = ({ status }) => (
 // ─────────────────────────────────────────────
 // RejectReason – lý do từ chối trong modal chi tiết
 // Chỉ render khi có reason
-// ─────────────────────────────────────────────
-export const RejectReason = ({ reason }) => {
-  if (!reason) return null;
+// Phản hồi từ người duyệt (Mẫu hộp đỏ theo thiết kế mới)
+export const ApproverFeedback = ({ status, reason }) => {
+  if (status !== 'rejected') return null;
+  
   return (
-    <div className="info-section">
-      <h3 className="section-title">Lý do từ chối</h3>
-      <p
-        className="info-content"
-        style={{ color: '#dc2626', fontWeight: 500, paddingLeft: 10 }}
-      >
-        {reason}
-      </p>
+    <div className="border border-red-100 bg-red-50/80 rounded-[16px] p-5 mb-6 relative overflow-hidden mt-4">
+      {/* Dải màu đỏ đánh dấu bên trái */}
+      <div className="absolute left-0 top-0 bottom-0 w-[5px] bg-red-500"></div>
+      
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 bg-red-100 text-red-600 p-1.5 rounded-full shrink-0">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+          </svg>
+        </div>
+        <div className="w-full">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-bold text-red-800 text-[13px]">Phản hồi từ người duyệt</h3>
+            <span className="bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border border-red-200 shadow-sm">
+              <span className="w-[5px] h-[5px] rounded-full bg-red-600"></span>
+              TỪ CHỐI
+            </span>
+          </div>
+          <div className="bg-white rounded-xl p-3.5 border border-red-100 shadow-sm w-full">
+            <p className="text-red-600 font-medium text-[13px] leading-relaxed italic">
+              "{reason || 'không được'}"
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

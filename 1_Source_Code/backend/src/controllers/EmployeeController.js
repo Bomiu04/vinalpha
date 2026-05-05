@@ -988,6 +988,7 @@ exports.getMyRequests = async (req, res) => {
         lr.end_datetime,
         lr.reason,
         lr.status,
+        lr.reject_reason,
         lr.created_at,
         lr.attachment,
         e.full_name AS approver_name
@@ -1144,7 +1145,14 @@ exports.getMyOvertimeRequests = async (req, res) => {
 
     const query = `
       SELECT 
-        ot.*,
+        ot.id,
+        ot.ot_date,
+        ot.start_time,
+        ot.end_time,
+        ot.reason,
+        ot.status,
+        ot.reject_reason,
+        ot.created_at,
         e.full_name AS approver_name
       FROM overtime_request ot
       LEFT JOIN employee e ON ot.approver_id = e.id

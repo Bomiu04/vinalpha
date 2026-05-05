@@ -9,7 +9,7 @@ import { PiClockCounterClockwise } from "react-icons/pi";
 import { GoCheckCircle, GoBlocked } from "react-icons/go";
 import { LuClock2 } from "react-icons/lu";
 import { employeeService } from "../../services/employeeService";
-import { StatusPill, RejectReason, MonthFilter, HistoryPageHeader, Toast } from '../../components/RequestSharedComponents';
+import { StatusPill, ApproverFeedback, MonthFilter, HistoryPageHeader, ConfirmModal, Toast } from '../../components/RequestSharedComponents';
 
 import "./Requests.css";
 
@@ -238,7 +238,10 @@ const calculateTotalDays = (start, end) => {
     employeeService
       .getApprovers(user.id)
       .then((res) => {
-        setApprovers(res?.data || res || []);
+      const data = res?.data || res || [];
+        setApprovers(data);
+        // Tự động chọn quản lý trực tiếp (phần tử đầu tiên, priority=1)
+        if (data.length > 0) setApproverId(data[0].id);
       })
     .catch((err) => console.error(err));
   }, [view,user?.id]);
@@ -807,17 +810,17 @@ const isOverlapping = (newStart, newEnd) => {
                   <th>Ngày kết thúc</th>
                   <th>Tổng ngày nghỉ</th>
                   <th>Trạng thái</th>
+                  <th>Lý do từ chối</th>
                 </tr>
               </thead>
               <tbody>
                {requests.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="empty">Không có dữ liệu đơn đã gửi</td>
+                    <td colSpan="7" className="empty">Không có dữ liệu đơn đã gửi</td>
                   </tr>
                 ) : (
                   filteredRequests.map((r) => (
                     <tr key={r.id} 
-                      
                       onClick={() => {console.log(r),handleRowClick(r)}} 
                       style={{ cursor: "pointer" }}
                     >
@@ -836,159 +839,142 @@ const isOverlapping = (newStart, newEnd) => {
                       {/* Cột Tổng ngày nghỉ */}
                       <td>{calculateTotalDays(r.start_datetime, r.end_datetime)}</td>
 
-                      {/* Cột Trạng thái với Style Pill (giống ảnh image_192663.png) */}
+                      {/* Cột Trạng thái */}
                       <td><StatusPill status={r.status} /></td>
+
+                      {/* Cột Lý do từ chối */}
+                      <td style={{ color: r.status === 'rejected' ? '#dc2626' : '#6b7280', fontSize: '13px' }}>
+                        {r.status === 'rejected' ? (r.reject_reason || '---') : '---'}
+                      </td>
                     </tr>
-))
+                  ))
                 )}
               </tbody>
             </table>
           </div>
-
-      </div>
-    </>
-  )}
-
-
-
       </div>
 
       {showModal && selectedRequest && (
-        <div className="modal-overlay" onClick={closeModal}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2 style={{marginBottom:"20px",fontSize:"20px",fontWeight:"bold"}}>Chi tiết đơn nghỉ phép</h2>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          {/* Lớp phủ tối (Backdrop mô phỏng Modal) */}
+          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={closeModal}></div>
 
-            {/* THÔNG TIN CHUNG */}
-            <div className="info-section">
-              <h3 className="section-title">
-                <FaRegFileAlt className="icon" /> Thông tin chung
-              </h3>
-              <div className="input-grid">
-                <div className="input-group-1">
-                  <label style={{textAlign:"left",marginLeft:"5px",fontWeight:"bold",fontSize:"13px"}}>Loại đơn</label>
-                  <input
-                    type="text"
-                    className="input-option-2"
-                    value={getLeaveTypeText(selectedRequest.leave_type)}
-                    readOnly
-                  />
-                </div>
-                <div className="input-group-1">
-                  <label style={{textAlign:"left",marginLeft:"5px",fontWeight:"bold",fontSize:"13px"}}>Người kiểm duyệt</label>
-                  <input
-                    type="text"
-                    className="input-option-2"
-                    value={selectedRequest.approver_name || "---"}
-                    readOnly
-                  />
-                </div>
-              </div>
-            </div>
+          {/* CONTAINER CHÍNH CỦA ĐƠN TỪ */}
+          <div className="bg-white w-full max-w-[500px] rounded-3xl shadow-2xl p-6 md:p-8 relative z-10 animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh] overflow-y-auto">
+              
+              {/* Tiêu đề */}
+              <h2 className="text-center text-lg font-bold text-[#1f2937] mb-6">Chi tiết đơn nghỉ phép</h2>
 
-            {/* THỜI GIAN */}
-            <div className="info-section">
-              <h3 className="section-title">
-                <FaRegClock className="icon" /> Thời gian nghỉ
-              </h3>
-              <div className="input-grid">
-                <div className="input-group-1">
-                  <label style={{textAlign:"left",marginLeft:"5px",fontWeight:"bold",fontSize:"13px"}}>Ngày bắt đầu</label>
-                  <input
-                    type="date"
-                    className="input-option-2"
-                    value={selectedRequest.start_datetime?.split("T")[0] || ""}
-                    readOnly
-                  />
-                </div>
-                <div className="input-group-1">
-                  <label style={{textAlign:"left",marginLeft:"5px",fontWeight:"bold",fontSize:"13px"}}>Ngày kết thúc</label>
-                  <input
-                    type="date"
-                    className="input-option-2"
-                    value={selectedRequest.end_datetime?.split("T")[0] || ""}
-                    readOnly
-                  />
-                </div>
-              </div>
-              <div className="info-section-bottom-1">
-                <div className="info-section-bottom-left">
-                  <p>Tổng thời gian nghỉ :</p>
-                </div>
-                <div className="info-section-bottom-right">
-                  <p>
-{calculateTotalDays(selectedRequest.start_datetime, selectedRequest.end_datetime)}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* CHI TIẾT */}
-            <div className="info-section">
-              <h3 className="section-title">
-                <MdChatBubbleOutline className="icon" /> Chi tiết thêm
-              </h3>
-              <div className="input-grid-1">
-                <div className="input-group" style={{ marginTop: "20px" }}>
-                  <label style={{textAlign:"left",marginLeft:"7px"}}>Lý do cụ thể</label>
-                  <textarea
-                    className="input-option-3"
-                    value={selectedRequest.reason}
-                    readOnly
-                  />
-                </div>
-
-               {selectedRequest.attachment && (
-                <div className="input-group" style={{ marginTop: "20px" }}>
-                  <label>File đính kèm</label>
-
-                  <div className="file-preview">
-                    <div className="file-left">📎</div>
-
-                    <div className="file-info">
-                      <span className="file-name">
-                        {selectedRequest.attachment}
-                      </span>
-                    </div>
-
-                    <div className="file-actions">
-                      <a
-                        href={`http://localhost:5000/uploads/${selectedRequest.attachment}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="file-view-btn"
-                      >
-                        Xem
-                      </a>
-                      <a
-                        href={`http://localhost:5000/uploads/${selectedRequest.attachment}`}
-                        download
-                        className="file-download-btn"
-                      >
-                        Tải xuống
-                      </a>
-                    </div>
+              {/* Khối 1: Thông tin chung */}
+              <div className="border border-gray-200 rounded-[16px] p-5 mb-4">
+                  <div className="flex items-center gap-2 mb-4">
+                      <FaRegFileAlt className="w-[18px] h-[18px] text-emerald-500" />
+                      <h3 className="font-bold text-gray-700 text-[13px]">Thông tin chung</h3>
                   </div>
-                </div>
-              )}
+                  <div className="grid grid-cols-2 gap-4">
+                      <div>
+                          <label className="block text-[11px] font-bold text-[#1f2937] mb-1.5 uppercase tracking-wider">Loại nghỉ phép</label>
+                          <div className="bg-slate-200/70 text-gray-700 text-[13px] font-medium p-2.5 rounded-lg border border-slate-300/60">
+                              {getLeaveTypeText(selectedRequest.leave_type)}
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-[11px] font-bold text-[#1f2937] mb-1.5 uppercase tracking-wider">Người kiểm duyệt</label>
+                          <div className="bg-slate-200/70 text-gray-700 text-[13px] font-medium p-2.5 rounded-lg border border-slate-300/60 truncate" title={selectedRequest.approver_name || "---"}>
+                              {selectedRequest.approver_name || "---"}
+                          </div>
+                      </div>
+                  </div>
               </div>
-            </div>
 
-            {/* LÝ DO TỪ CHỐI (NẾU CÓ) */}
-            {selectedRequest.status === "rejected" && (
-              <RejectReason reason={selectedRequest.reject_reason} />
-            )}
+              {/* Khối 2: Thời gian nghỉ */}
+              <div className="border border-gray-200 rounded-[16px] p-5 mb-4">
+                  <div className="flex items-center gap-2 mb-4">
+                      <FaRegClock className="w-[18px] h-[18px] text-emerald-500" />
+                      <h3 className="font-bold text-gray-700 text-[13px]">Thời gian nghỉ</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                          <label className="block text-[11px] font-bold text-[#1f2937] mb-1.5 uppercase tracking-wider">Từ ngày</label>
+                          <div className="bg-slate-200/70 text-gray-700 text-[13px] font-medium p-2.5 rounded-lg border border-slate-300/60">
+                              {formatDate(selectedRequest.start_datetime)}
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-[11px] font-bold text-[#1f2937] mb-1.5 uppercase tracking-wider">Đến ngày</label>
+                          <div className="bg-slate-200/70 text-gray-700 text-[13px] font-medium p-2.5 rounded-lg border border-slate-300/60">
+                              {formatDate(selectedRequest.end_datetime)}
+                          </div>
+                      </div>
+                  </div>
+                  
+                  {/* Highlight Tổng thời gian */}
+                  <div className="bg-[#dcfce7] border border-[#86efac] rounded-xl p-3 flex justify-between items-center">
+                      <span className="text-[13px] text-gray-700 font-medium">Tổng ngày nghỉ:</span>
+                      <span className="text-[13px] font-bold text-[#16a34a]">
+                        {calculateTotalDays(selectedRequest.start_datetime, selectedRequest.end_datetime)}
+                      </span>
+                  </div>
+              </div>
 
-            <div style={{ textAlign: "right" }}>
-              <button onClick={closeModal} className="btn-close-modal">
-                Đóng
-              </button>
-            </div>
+              {/* Khối 3: Nội dung & Đính kèm */}
+              <div className="border border-gray-200 rounded-[16px] p-5 mb-4">
+                  <div className="flex items-center gap-2 mb-4">
+                      <MdChatBubbleOutline className="w-[18px] h-[18px] text-emerald-500" />
+                      <h3 className="font-bold text-gray-700 text-[13px]">Lý do & Minh chứng</h3>
+                  </div>
+                  <textarea 
+                    readOnly 
+                    className="w-full bg-slate-200/70 text-gray-700 text-[13px] font-medium p-3 rounded-lg border border-slate-300/60 resize-none outline-none mb-3" 
+                    rows="2"
+                    value={selectedRequest.reason || "Không có lý do"}
+                  />
+
+                  {selectedRequest.attachment && (
+                    <div className="bg-white rounded-xl p-3 border border-slate-200 shadow-sm flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-lg">📎</span>
+                        <span className="text-[12px] text-slate-600 truncate">{selectedRequest.attachment}</span>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <a 
+                          href={`http://localhost:5000/uploads/${selectedRequest.attachment}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="text-[11px] font-bold text-blue-600 hover:underline"
+                        >
+                          Xem
+                        </a>
+                      </div>
+                    </div>
+                  )}
+              </div>
+
+              {/* Khối 4: Trạng thái & Lý do */}
+              <div className="pb-4">
+                <ApproverFeedback 
+                  status={selectedRequest.status} 
+                  reason={selectedRequest.reject_reason} 
+                />
+              </div>
+
+              {/* Footer Action */}
+              <div className="flex justify-end mt-2">
+                  <button 
+                    onClick={closeModal}
+                    className="bg-[#05a643] hover:bg-[#048736] text-white font-bold text-[14px] py-2.5 px-8 rounded-xl shadow-md transition-all active:scale-95"
+                  >
+                      Đóng
+                  </button>
+              </div>
+
           </div>
         </div>
       )}
-
-
-      {/* RIGHT */}
+    </>
+  )}
+      </div>
+      {/* RIGHT SIDE STATISTICS */}
       <div className="request-right">
         <div className="card-request-top">
           <div className="card-header">

@@ -721,7 +721,7 @@ const createRequestApprovalNotification = async ({ transaction, type, requestRow
 
   const content = isApproved
     ? `${requestLabel} của bạn cho thời gian ${timeLabel} đã được phê duyệt.`
-    : `${requestLabel} của bạn cho thời gian ${timeLabel} đã bị từ chối. Lý do từ chối: ${rejectReason || 'Không có lý do cụ thể'}.`;
+    : `${requestLabel} của bạn cho thời gian ${timeLabel} đã bị từ chối. Lý do từ chối: ${rejectReason || 'không được'}.`;
 
   await createPersonalNotification({
     transaction,
@@ -757,7 +757,7 @@ const updateApprovalStatus = async (req, res) => {
       id,
       status,
       approver_id: approverId,
-      reject_reason: status === 'rejected' ? rejectReason : null
+      reject_reason: status === 'rejected' ? (rejectReason || 'không được') : null
     };
 
     // ===== LEAVE =====
@@ -813,6 +813,13 @@ const updateApprovalStatus = async (req, res) => {
           AND approver_id = :approver_id
           AND status = 'pending'
         RETURNING *;
+      `;
+
+      detailQuery = `
+        SELECT id, employee_id, attendance_date, explanation_type, proposed_check_in, proposed_check_out, reason
+        FROM attendance_explanation_request
+        WHERE id = :id
+        LIMIT 1
       `;
     }
 
