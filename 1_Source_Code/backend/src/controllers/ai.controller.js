@@ -331,11 +331,14 @@ Phân tích rủi ro nghỉ việc CHUYÊN SÂU cho ${batch.length} nhân viên 
 ${employeeListText}
 
 Quy tắc đánh giá risk_level (HIGH/MEDIUM/LOW):
-- Nghỉ không lý do >= 3 ngày → "HIGH"
+- Nghỉ không lý do >= 5 ngày → "HIGH" (bắt buộc)
+- Nghỉ không lý do >= 3 ngày → ít nhất "MEDIUM"
 - Gian lận GPS >= 2 lần → "HIGH" (gian lận nghiêm trọng)
-- Đi trễ + về sớm >= 5 lần hoặc có kỷ luật → >= "MEDIUM"
-- Có khen thưởng, chuyên cần tốt, OT cao → có thể "LOW"
-- Nhân viên mới (< 6 tháng) nghỉ nhiều → nguy cơ cao hơn bình thường
+- Đi trễ + về sớm >= 5 lần (cộng tổng) → "HIGH" (mất kỷ luật)
+- Đi trễ + về sớm >= 3 lần (cộng tổng) → ít nhất "MEDIUM"
+- Có kỷ luật → ít nhất "MEDIUM"
+- Có khen thưởng, chuyên cần tốt (đi trễ 0 lần, nghỉ phép hợp lệ), OT cao → "LOW"
+- Nhân viên mới (< 6 tháng) nghỉ nhiều hoặc đi trễ liên tục → nguy cơ cao hơn bình thường
 
 Trả về MỘT MẢNG JSON gồm ${batch.length} phần tử, cấu trúc:
 [
@@ -409,13 +412,19 @@ Luôn trả lời bằng định dạng JSON Array thuần. KHÔNG bọc trong o
         } catch (jsonErr) {
           console.error(`❌ [AI Batch ${i / BATCH_SIZE + 1}] JSON parse thất bại:`, jsonErr.message);
           console.error(`   Raw response: ${rawContent.substring(0, 300)}...`);
-          // Fallback: tạo kết quả mặc định cho batch này
-          aiResults = batch.map(s => ({
-            employee_id: s.id,
-            risk_level: s.absentCount >= 3 ? 'HIGH' : s.absentCount >= 1 ? 'MEDIUM' : 'LOW',
-            summary: 'Không thể phân tích AI — sử dụng đánh giá dựa trên quy tắc.',
-            recommendations: ['Cần kiểm tra lại dữ liệu chấm công.']
-          }));
+          // Fallback: tạo kết quả mặc định cho batch này dựa trên rule
+          aiResults = batch.map(s => {
+            const totalBad = (s.lateCount || 0) + (s.earlyLeaveCount || 0);
+            let riskLevel = 'LOW';
+            if (s.absentCount >= 5 || s.gpsFraudCount >= 2 || totalBad >= 5) riskLevel = 'HIGH';
+            else if (s.absentCount >= 3 || totalBad >= 3 || s.disciplineCount >= 1) riskLevel = 'MEDIUM';
+            return {
+              employee_id: s.id,
+              risk_level: riskLevel,
+              summary: 'Không thể phân tích AI — sử dụng đánh giá dựa trên quy tắc.',
+              recommendations: ['Cần kiểm tra lại dữ liệu chấm công.']
+            };
+          });
         }
 
         // Xoá alert cũ của tất cả NV trong batch + bulkCreate alert mới
@@ -436,10 +445,18 @@ Luôn trả lời bằng định dạng JSON Array thuần. KHÔNG bọc trong o
             employee_id: ai.employee_id,
             alert_type: 'TURNOVER_RISK',
             risk_level: riskLevel,
-            message: JSON.stringify({ 
-              summary: ai.summary || '', 
+            message: JSON.stringify({
+              // ── Tóm tắt & đề xuất từ AI ──
+              summary: ai.summary || '',
               recommendations: ai.recommendations || [],
+              // ── Thông tin phân tích phong phú từ AI (lưu đầy đủ để frontend hiển thị) ──
+              risk_score: ai.risk_score ?? null,
+              analysis: ai.analysis || null,
+              retention_strategy: ai.retention_strategy || [],
+              suggested_action: ai.suggested_action || null,
+              // ── Snapshot dữ liệu thực tế tại thời điểm phân tích ──
               last_stats: {
+                pastWorkingDays: matchedStat.pastWorkingDays,
                 presentCount: matchedStat.presentCount,
                 totalWorkHours: matchedStat.totalWorkHours,
                 otHours: matchedStat.otHours,
@@ -476,28 +493,43 @@ Luôn trả lời bằng định dạng JSON Array thuần. KHÔNG bọc trong o
         const batchEmpIds = batch.map(s => s.id);
         await AIAlert.destroy({ where: { employee_id: batchEmpIds, alert_type: 'TURNOVER_RISK' } });
 
-        const fallbackAlerts = batch.map(s => ({
-          employee_id: s.id,
-          alert_type: 'TURNOVER_RISK',
-          risk_level: s.absentCount >= 3 ? 'HIGH' : s.absentCount >= 1 ? 'MEDIUM' : 'LOW',
-          message: JSON.stringify({ 
-            summary: 'AI tạm thời không khả dụng — đánh giá theo quy tắc tự động.', 
-            recommendations: ['Kiểm tra kết nối Ollama.'],
-            last_stats: {
-              presentCount: s.presentCount,
-              totalWorkHours: s.totalWorkHours,
-              otHours: s.otHours,
-              absentCount: s.absentCount,
-              lateCount: s.lateCount,
-              earlyLeaveCount: s.earlyLeaveCount,
-              approvedLeaveCount: s.approvedLeaveCount,
-              disciplineCount: s.disciplineCount,
-              rewardCount: s.rewardCount,
-              gpsFraudCount: s.gpsFraudCount
-            }
-          }),
-          status: 'PENDING'
-        }));
+        const fallbackAlerts = batch.map(s => {
+          const totalBad = (s.lateCount || 0) + (s.earlyLeaveCount || 0);
+          let riskLevel = 'LOW';
+          if (s.absentCount >= 5 || s.gpsFraudCount >= 2 || totalBad >= 5) riskLevel = 'HIGH';
+          else if (s.absentCount >= 3 || totalBad >= 3 || s.disciplineCount >= 1) riskLevel = 'MEDIUM';
+
+          const reasons = [];
+          if (s.absentCount >= 1) reasons.push(`Nghỉ không lý do ${s.absentCount} ngày`);
+          if (totalBad >= 1) reasons.push(`Đi trễ/về sớm ${totalBad} lần`);
+          if (s.gpsFraudCount >= 1) reasons.push(`Gian lận GPS ${s.gpsFraudCount} lần`);
+
+          return {
+            employee_id: s.id,
+            alert_type: 'TURNOVER_RISK',
+            risk_level: riskLevel,
+            message: JSON.stringify({
+              summary: reasons.length > 0
+                ? `AI tạm thời không khả dụng. Phân tích theo quy tắc: ${reasons.join('; ')}.`
+                : 'AI tạm thời không khả dụng — đánh giá theo quy tắc tự động.',
+              recommendations: ['Kiểm tra kết nối Ollama.'],
+              last_stats: {
+                pastWorkingDays: s.pastWorkingDays,
+                presentCount: s.presentCount,
+                totalWorkHours: s.totalWorkHours,
+                otHours: s.otHours,
+                absentCount: s.absentCount,
+                lateCount: s.lateCount,
+                earlyLeaveCount: s.earlyLeaveCount,
+                approvedLeaveCount: s.approvedLeaveCount,
+                disciplineCount: s.disciplineCount,
+                rewardCount: s.rewardCount,
+                gpsFraudCount: s.gpsFraudCount
+              }
+            }),
+            status: 'PENDING'
+          };
+        });
         const created = await AIAlert.bulkCreate(fallbackAlerts);
         for (const alert of created) {
           const stat = empMap[alert.employee_id];
