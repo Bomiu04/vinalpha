@@ -43,9 +43,9 @@ const INITIAL_MESSAGE: ChatMessage = {
 };
 
 const QUICK_QUESTIONS = [
+  'Giờ làm việc của công ty như thế nào?',
   'Tôi còn bao nhiêu ngày phép?',
   'Tháng này tôi đi trễ mấy lần?',
-  'Lương cơ bản của tôi là bao nhiêu?',
   'Quy trình xin nghỉ phép như thế nào?',
 ];
 
