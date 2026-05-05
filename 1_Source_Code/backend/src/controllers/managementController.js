@@ -1,6 +1,6 @@
 
 const db = require('../config/database'); 
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { sendAccountEmail } = require('../services/emailService');
 
 const getEmployees = async (req, res) => {
