@@ -7,30 +7,7 @@ const { haversineDistanceMeters } = require('../utils/geoUtils');
 const OLLAMA_TIMEOUT_MS = 5 * 60 * 1000;
 const ollama = new Ollama({ host: 'http://localhost:11434' });
 
-exports.testLocalAI = async (req, res) => {
-  try {
-    const response = await ollama.chat({
-      model: 'qwen2.5:7b',
-      messages: [
-        { role: 'system', content: 'Bạn là một trợ lý nhân sự thông minh.' },
-        { role: 'user', content: 'Xin chào, bạn có thể giúp gì cho hệ thống quản lý nhân sự của tôi?' }
-      ],
-    });
 
-    return res.status(200).json({ success: true, message: 'Kết nối AI thành công', data: response.message.content });
-  } catch (error) {
-    console.error('❌ Lỗi kết nối Ollama:', error.message);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Không thể kết nối đến Ollama. Hãy đảm bảo Ollama đang chạy và model "qwen2" đã được pull.', 
-      error: error.message,
-      suggestion: 'Thử chạy lệnh: ollama run qwen2'
-    });
-  }
-};
-
-// Helper: Tính tổng ngày làm việc (trừ T7 + CN) từ startDate đến HÔM QUA
-// Không bao gồm ngày hôm nay (vì chưa kết thúc ca)
 function getPastWorkingDays(startDate, today) {
   let count = 0;
   const cursor = new Date(startDate);
@@ -255,9 +232,9 @@ exports.analyzeTurnoverRisk = async (req, res) => {
     });
 
     // ═══════════════════════════════════════════════════════════════
-    // BƯỚC 1.1: KIỂM TRA THAY ĐỔI DỮ LIỆU (Tạm thời bỏ qua theo yêu cầu để xử lý lại toàn bộ)
+    // BƯỚC 1.1: KIỂM TRA THAY ĐỔI DỮ LIỆU 
     // ═══════════════════════════════════════════════════════════════
-    /*
+    
     const existingAlerts = await AIAlert.findAll({
       where: { employee_id: empIds, alert_type: 'TURNOVER_RISK' }
     });
@@ -297,11 +274,6 @@ exports.analyzeTurnoverRisk = async (req, res) => {
         data: [] 
       });
     }
-    */
-    
-    // Gán trực tiếp để xử lý lại toàn bộ dữ liệu
-    const employeesToProcess = employeeStats;
-    
 
     // ═══════════════════════════════════════════════════════════════
     // BƯỚC 2: BATCH PROCESSING — Gộp prompt cho Ollama
@@ -830,7 +802,14 @@ exports.analyzeStream = async (req, res) => {
 
     send('start', { total: toProcess.length, month: monthLabel, pastWorkingDays: pastWorkingDaysSSE });
 
+    let isConnectionOpen = true;
+    req.on('close', () => {
+      console.log('📡 SSE Connection closed by client.');
+      isConnectionOpen = false;
+    });
+
     for (let i = 0; i < toProcess.length; i++) {
+      if (!isConnectionOpen) break;
       const emp = toProcess[i];
       const batchNum = i + 1;
       send('batch_start', { batchNum, totalBatches: toProcess.length, name: emp.full_name, absentCount: emp.absentCount, presentCount: emp.presentCount });
@@ -839,7 +818,15 @@ exports.analyzeStream = async (req, res) => {
         const rate = pastWorkingDaysSSE > 0 ? Math.round((emp.presentCount / pastWorkingDaysSSE) * 100) : 0;
         const prompt = `Phân tích rủi ro nghỉ việc tháng ${monthLabel} (${pastWorkingDaysSSE} ngày làm việc đã qua):\nNhân viên: ${emp.full_name} | ${emp.position} | ${emp.department} | Thâm niên: ${emp.seniority_months ?? '?'}th (chỉ tham khảo)\nCó mặt: ${emp.presentCount}/${pastWorkingDaysSSE} ngày (${rate}%) | OT: ${emp.otHours}h | Nghỉ phép: ${emp.approvedLeaveCount} | Vắng KP: ${emp.absentCount} | Trễ (sau 7h00): ${emp.lateCount} | Sớm (trước 17h00): ${emp.earlyLeaveCount} | Kỷ luật: ${emp.disciplineCount} | Khen: ${emp.rewardCount} | GPS Fraud: ${emp.gpsFraudCount}\nQuy tắc: Vắng>=5→HIGH; Vắng>=3→MEDIUM; GPS>=2→HIGH; Trễ+Sớm>=5→HIGH; >=3→MEDIUM; KL→MEDIUM; Tốt+OT+Khen→LOW.\nTUYỆT ĐỐI KHÔNG dùng thâm niên để tăng risk_level. BẮT BUỘC dùng số liệu. Tiếng Việt hoàn toàn.\nJSON Object: {"employee_id":"${emp.id}","risk_level":"HIGH|MEDIUM|LOW","risk_score":0-100,"summary":"3-4 câu+số liệu","analysis":{"key_concerns":["..."],"positive_signals":["..."],"behavior_pattern":"..."},"retention_strategy":[{"action":"...","priority":"URGENT|HIGH|MEDIUM","timeline":"3 ngày|1 tuần"}],"suggested_action":{"type":"reward|discipline|monitor|meeting","reason":"..."},"recommendations":["...","..."]}`;
 
-        const aiResp = await ollama.chat({ model: 'qwen2.5:7b', messages: [{ role: 'system', content: 'HR Manager, phân tích nhân sự chuyên sâu. BẮT BUỘC dùng tiếng Việt. TUYỆT ĐỐI KHÔNG dùng Thâm niên để tăng risk_level. ĐÁNH GIÁ DỰA 100% vào: vắng mặt, đi trễ (sau 7h00), về sớm (trước 17h00), kỷ luật, khen thưởng. Chỉ trả JSON Object.' }, { role: 'user', content: prompt }], format: 'json', keep_alive: '10m', options: { num_ctx: 4096, temperature: 0.4 } });
+        const aiResp = await ollama.chat({ 
+          model: 'qwen2.5:7b', 
+          messages: [{ role: 'system', content: 'HR Manager, phân tích nhân sự chuyên sâu. BẮT BUỘC dùng tiếng Việt. TUYỆT ĐỐI KHÔNG dùng Thâm niên để tăng risk_level. ĐÁNH GIÁ DỰA 100% vào: vắng mặt, đi trễ (sau 7h00), về sớm (trước 17h00), kỷ luật, khen thưởng. Chỉ trả JSON Object.' }, { role: 'user', content: prompt }], 
+          format: 'json', 
+          keep_alive: '10m', 
+          options: { num_ctx: 4096, temperature: 0.4 } 
+        });
+
+        if (!isConnectionOpen) break;
 
         let aiResult;
         try { const p = JSON.parse(aiResp.message.content); aiResult = Array.isArray(p) ? p[0] : p; }
@@ -851,11 +838,15 @@ exports.analyzeStream = async (req, res) => {
 
         send('batch_done', { batchNum, totalBatches: toProcess.length, name: emp.full_name, risk: riskLevel, risk_score: aiResult.risk_score ?? null });
       } catch (batchErr) {
-        send('batch_error', { batchNum, totalBatches: toProcess.length, name: emp.full_name, message: batchErr.message });
+        if (isConnectionOpen) {
+          send('batch_error', { batchNum, totalBatches: toProcess.length, name: emp.full_name, message: batchErr.message });
+        }
       }
     }
 
-    send('complete', { total: toProcess.length });
+    if (isConnectionOpen) {
+      send('complete', { total: toProcess.length });
+    }
     res.end();
   } catch (error) {
     send('error', { message: error.message });

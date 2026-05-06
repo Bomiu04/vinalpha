@@ -119,19 +119,19 @@
   border-radius: 12px;
   border: none;
 
-  /* Màu xanh Cyan giống mẫu */
+  /* MÃ u xanh Cyan giá»‘ng máº«u */
   background: #00bcd4; 
   color: #ffffff;
   
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.25); /* Đổ bóng nhẹ cùng tông màu */
+  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.25); /* Äá»• bÃ³ng nháº¹ cÃ¹ng tÃ´ng mÃ u */
   transition: all 0.2s ease;
 }
 
 .approvals-btn-all:hover {
-  background: #00acc1; /* Đậm hơn một chút khi hover */
+  background: #00acc1; /* Äáº­m hÆ¡n má»™t chÃºt khi hover */
   transform: translateY(-1px);
   box-shadow: 0 6px 15px rgba(0, 188, 212, 0.35);
 }
@@ -154,7 +154,7 @@
   border: 1px solid #ccc;
 }
 
-/* Phần số liệu bên trái */
+/* Pháº§n sá»‘ liá»‡u bÃªn trÃ¡i */
 .approvals-statsbar-left {
   display: flex;
   align-items: center;
@@ -179,8 +179,8 @@
   font-weight: 700;
 }
 
-.stat-number.orange { color: #f59e0b; } /* Màu vàng cam */
-.stat-number.green { color: #10b981; }  /* Màu xanh lá */
+.stat-number.orange { color: #f59e0b; } /* MÃ u vÃ ng cam */
+.stat-number.green { color: #10b981; }  /* MÃ u xanh lÃ¡ */
 
 .stat-divider {
   width: 1px;
@@ -227,44 +227,44 @@
 
 
 /*content*/
-/* Container chung của phần Content */
+/* Container chung cá»§a pháº§n Content */
 .approvals-content {
   margin-top: 24px;
   padding:15px;
   overflow-y: auto;
 }
-/* 2. Tùy chỉnh độ rộng thanh cuộn */
+/* 2. TÃ¹y chá»‰nh Ä‘á»™ rá»™ng thanh cuá»™n */
 .approvals-content::-webkit-scrollbar {
-    width: 6px; /* Làm thanh cuộn mỏng đi (mặc định thường là 12px-16px) */
+    width: 6px; /* LÃ m thanh cuá»™n má»ng Ä‘i (máº·c Ä‘á»‹nh thÆ°á»ng lÃ  12px-16px) */
 }
 
-/* 3. Tùy chỉnh phần nền của thanh cuộn (Track) */
+/* 3. TÃ¹y chá»‰nh pháº§n ná»n cá»§a thanh cuá»™n (Track) */
 .approvals-content::-webkit-scrollbar-track {
-    background: transparent; /* Để nền trong suốt cho đỡ thô */
+    background: transparent; /* Äá»ƒ ná»n trong suá»‘t cho Ä‘á»¡ thÃ´ */
 }
 
-/* 4. Tùy chỉnh phần thanh trượt (Thumb) */
+/* 4. TÃ¹y chá»‰nh pháº§n thanh trÆ°á»£t (Thumb) */
 .approvals-content::-webkit-scrollbar-thumb {
-    background: #e2e8f0; /* Màu xám nhạt tinh tế */
-    border-radius: 10px; /* Bo tròn đầu thanh cuộn */
+    background: #e2e8f0; /* MÃ u xÃ¡m nháº¡t tinh táº¿ */
+    border-radius: 10px; /* Bo trÃ²n Ä‘áº§u thanh cuá»™n */
     transition: all 0.3s ease;
 }
 
-/* 5. Hiệu ứng khi di chuột vào thanh trượt */
+/* 5. Hiá»‡u á»©ng khi di chuá»™t vÃ o thanh trÆ°á»£t */
 .approvals-content::-webkit-scrollbar-thumb:hover {
-    background: #cbd5e1; /* Đậm hơn một chút khi tương tác */
+    background: #cbd5e1; /* Äáº­m hÆ¡n má»™t chÃºt khi tÆ°Æ¡ng tÃ¡c */
 }
 
 .content-title {
   font-size: 13px;
-  color: #94a3b8; /* Màu xám nhạt */
+  color: #94a3b8; /* MÃ u xÃ¡m nháº¡t */
   font-weight: 700;
   margin-bottom: 20px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-/* Thẻ Card chính cho mỗi nhân viên */
+/* Tháº» Card chÃ­nh cho má»—i nhÃ¢n viÃªn */
 .request-card {
   display: flex;
   align-items: center;
@@ -292,7 +292,7 @@
 .card-user-section {
   display: flex;
   align-items: center;
-  width: 250px; /* Cố định độ rộng cột 1 */
+  width: 250px; /* Cá»‘ Ä‘á»‹nh Ä‘á»™ rá»™ng cá»™t 1 */
   gap: 16px;
 }
 
@@ -347,7 +347,7 @@
   
 }
 
-/* Style cho tag Nghỉ phép năm */
+/* Style cho tag Nghá»‰ phÃ©p nÄƒm */
 .green-bg {
   color: #047857;
   background-color: rgba(16, 185, 129, 0.1);
@@ -401,7 +401,7 @@
   gap: 16px;
 }
 
-/* Nút icon xem chi tiết (màu xanh cyan nhạt) */
+/* NÃºt icon xem chi tiáº¿t (mÃ u xanh cyan nháº¡t) */
 .btn-icon-view {
   background: #ecfeff;
   color: #0891b2;
@@ -420,7 +420,7 @@
   background: #cffafe;
 }
 
-/* Nhóm nút Từ chối / Phê duyệt */
+/* NhÃ³m nÃºt Tá»« chá»‘i / PhÃª duyá»‡t */
 .action-buttons {
   display: flex;
   gap: 10px;
@@ -495,8 +495,8 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.6); /* Màu tối deep blue hiện đại hơn */
-  backdrop-filter: blur(4px); /* Làm mờ nền phía sau */
+  background: rgba(15, 23, 42, 0.6); /* MÃ u tá»‘i deep blue hiá»‡n Ä‘áº¡i hÆ¡n */
+  backdrop-filter: blur(4px); /* LÃ m má» ná»n phÃ­a sau */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -512,7 +512,7 @@
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Để header và body không bị lòi ra ngoài border radius */
+  overflow: hidden; /* Äá»ƒ header vÃ  body khÃ´ng bá»‹ lÃ²i ra ngoÃ i border radius */
   animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -522,7 +522,6 @@
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #f1f5f9;
-  margin-top: 25px;
 }
 
 .modal-header h3 {
@@ -532,30 +531,31 @@
   font-weight: 700;
 }
 
-.approvals-btn-close {
+.modal-header-actions {
   display: flex;
   align-items: center;
-  justify-content: center; 
-  width: 10px;
-  height: 25px ;
-  border-radius: 50%;
-  position: absolute;
-  top: 0px;
-  right: 5px;
+  gap: 12px;
+}
 
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
-  color: #fff;
-
+.approvals-btn-close {
+  padding: 8px 20px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ef4444, #f87171) !important;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
   border: none;
   cursor: pointer;
-
-  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
-  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .approvals-btn-close:hover {
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
-  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.35);
+  background: linear-gradient(135deg, #dc2626, #ef4444) !important;
+  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.35);
   transform: translateY(-1px) scale(1.05);
 }
 
@@ -565,7 +565,7 @@
 
 .approvals-btn-close:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
 }
 /* Modal Body */
 .modal-body {
@@ -674,7 +674,7 @@
 .header-left {
   display: flex;
   align-items: center;
-  gap: 15px; /* Khoảng cách giữa chữ Lịch sử và Dropdown */
+  gap: 15px; /* Khoáº£ng cÃ¡ch giá»¯a chá»¯ Lá»‹ch sá»­ vÃ  Dropdown */
 }
 
 .history-dropdown {
@@ -702,7 +702,7 @@
 
 
 
-/* Container Modal Chi Tiết */
+/* Container Modal Chi Tiáº¿t */
 .request-detail-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -861,22 +861,22 @@
 }
 
 
-/* Overlay bao phủ toàn màn hình */
+/* Overlay bao phá»§ toÃ n mÃ n hÃ¬nh */
 .asp-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Làm tối nền */
+  background-color: rgba(0, 0, 0, 0.5); /* LÃ m tá»‘i ná»n */
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(2px); /* Làm mờ nhẹ nền phía sau */
+  backdrop-filter: blur(2px); /* LÃ m má» nháº¹ ná»n phÃ­a sau */
 }
 
-/* Khung nội dung Modal */
+/* Khung ná»™i dung Modal */
 .asp-modal-content {
   background: #ffffff;
   padding: 24px;
@@ -895,7 +895,7 @@
   padding-bottom: 12px;
 }
 
-/* Textarea tùy chỉnh */
+/* Textarea tÃ¹y chá»‰nh */
 .asp-modal-textarea {
   width: 100%;
   min-height: 120px;
@@ -914,7 +914,7 @@
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
 }
 
-/* Cụm nút bấm */
+/* Cá»¥m nÃºt báº¥m */
 .asp-modal-actions {
   margin-top: 20px;
   display: flex;
@@ -932,7 +932,7 @@
   border: none;
 }
 
-/* Nút Hủy */
+/* NÃºt Há»§y */
 .asp-btn-cancel {
   background: #f1f1f1;
   color: #555;
@@ -942,7 +942,7 @@
   background: #e5e5e5;
 }
 
-/* Nút Xác nhận (Màu đỏ vì là hành động từ chối) */
+/* NÃºt XÃ¡c nháº­n (MÃ u Ä‘á» vÃ¬ lÃ  hÃ nh Ä‘á»™ng tá»« chá»‘i) */
 .asp-btn-confirm {
   background: #dc3545;
   color: white;
@@ -956,4 +956,33 @@
 @keyframes aspFadeIn {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* NEW STYLES FOR BATCH APPROVAL */
+.content-title-wrapper {
+  padding: 0 5px;
+}
+
+.select-all-checkbox {
+  user-select: none;
+  transition: all 0.2s ease;
+  padding: 5px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.select-all-checkbox:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.selection-checkbox input[type='checkbox'] {
+  accent-color: #00bcd4;
+  transform: scale(1.1);
+  transition: all 0.2s ease;
+}
+
+.selection-checkbox input[type='checkbox']:hover {
+  transform: scale(1.2);
 }

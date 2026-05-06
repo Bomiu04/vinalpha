@@ -210,7 +210,7 @@ export default function EmployeeDetail({ employee, onBack, onEdit }) {
                 <InfoRow label="Email công ty" value={detail.work_email || 'Chưa cập nhật'} />
               <InfoRow label="Phòng ban" value={detail.department_title || 'Chưa có'} />
               <InfoRow label="Chức vụ" value={detail.position_title || 'Chưa có'} />
-              <InfoRow label="Loại hợp đồng" value={<span className="text-cyan-600 bg-cyan-50 px-2 py-1 rounded text-xs font-semibold uppercase">{detail.contract_type?.replace('_', ' ') || 'Chưa xác định'}</span>} />
+
               <InfoRow label="Ngày gia nhập" value={<>{formatDate(detail.join_date)} <span className="text-emerald-500 text-xs font-medium ml-1">{calculateTenure(detail.join_date)}</span></>} />
             </div>
           </div>

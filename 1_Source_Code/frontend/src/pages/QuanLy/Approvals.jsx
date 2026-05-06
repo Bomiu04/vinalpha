@@ -51,6 +51,7 @@ const Approvals = () => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [rejectTarget, setRejectTarget] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]); // Array of {type, id}
 
 
 
@@ -148,20 +149,68 @@ const handleApproveAll = async () => {
 
     await Promise.all(
       requests.map(req =>
-        managerApprovals.approveRequest(req.type, req.id,user.id)
+        managerApprovals.approveRequest(req.type, req.id, user.id)
       )
     );
 
-    // UX mượt: fade out thay vì mất liền
     setRequests([]);
+    setSelectedIds([]);
 
     const resApproved = await managerApprovals.getApprovalHistory(user.id);
     setApprovedRequests(resApproved.data || resApproved);
-
+    alert("Đã duyệt tất cả các đơn thành công!");
   } catch (err) {
     console.error(err);
+    alert("Có lỗi xảy ra khi duyệt tất cả!");
   } finally {
     setApprovingAll(false);
+  }
+};
+
+const handleApproveSelected = async () => {
+  if (selectedIds.length === 0) return;
+
+  const confirm = window.confirm(`Bạn có chắc muốn duyệt ${selectedIds.length} đơn đã chọn?`);
+  if (!confirm) return;
+
+  try {
+    setApprovingAll(true);
+    await Promise.all(
+      selectedIds.map(req =>
+        managerApprovals.approveRequest(req.type, req.id, user.id)
+      )
+    );
+
+    setRequests(prev => prev.filter(r => !selectedIds.some(s => s.id === r.id && s.type === r.type)));
+    setSelectedIds([]);
+
+    const resApproved = await managerApprovals.getApprovalHistory(user.id);
+    setApprovedRequests(resApproved.data || resApproved);
+    alert("Đã duyệt thành công các đơn đã chọn!");
+  } catch (err) {
+    console.error(err);
+    alert("Có lỗi xảy ra khi duyệt hàng loạt!");
+  } finally {
+    setApprovingAll(false);
+  }
+};
+
+const toggleSelect = (type, id) => {
+  setSelectedIds(prev => {
+    const isExist = prev.some(s => s.id === id && s.type === type);
+    if (isExist) {
+      return prev.filter(s => !(s.id === id && s.type === type));
+    } else {
+      return [...prev, { type, id }];
+    }
+  });
+};
+
+const toggleSelectAll = () => {
+  if (selectedIds.length === filteredRequests.length) {
+    setSelectedIds([]);
+  } else {
+    setSelectedIds(filteredRequests.map(r => ({ type: r.type, id: r.id })));
   }
 };
 
@@ -221,8 +270,20 @@ const handleApproveAll = async () => {
                 </button>
                 <button
                   className="approvals-btn-all"
+                  onClick={handleApproveSelected}
+                  disabled={approvingAll || selectedIds.length === 0}
+                  style={{ 
+                    backgroundColor: selectedIds.length > 0 ? '#059669' : '#94a3b8',
+                    cursor: selectedIds.length > 0 ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  <CiCircleCheck size={18}/>
+                  {approvingAll ? "Đang duyệt..." : `Duyệt đã chọn (${selectedIds.length})`}
+                </button>
+                <button
+                  className="approvals-btn-all"
                   onClick={handleApproveAll}
-                  disabled={approvingAll}
+                  disabled={approvingAll || requests.length === 0}
                 >
                   <CiCircleCheck size={18}/>
                   {approvingAll ? "Đang duyệt..." : "Duyệt tất cả"}
@@ -279,7 +340,20 @@ const handleApproveAll = async () => {
         </div>
         {/* ================= Content ================= */}
         <div className="approvals-content">
-        <h3 className="content-title">YÊU CẦU TỪ NHÂN VIÊN</h3>
+        <div className="content-title-wrapper" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h3 className="content-title" style={{ margin: 0 }}>YÊU CẦU TỪ NHÂN VIÊN</h3>
+          {filteredRequests.length > 0 && (
+            <label className="select-all-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#64748b' }}>
+              <input 
+                type="checkbox" 
+                checked={selectedIds.length === filteredRequests.length && filteredRequests.length > 0}
+                onChange={toggleSelectAll}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              Chọn tất cả
+            </label>
+          )}
+        </div>
 
         {/* Card 1 */}
         {loading ? (
@@ -301,6 +375,15 @@ const handleApproveAll = async () => {
             }}>
                       
               <div className="card-user-section">
+                <div className="selection-checkbox" style={{ marginRight: '15px', display: 'flex', alignItems: 'center' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={selectedIds.some(s => s.id === req.id && s.type === req.type)}
+                    onChange={() => toggleSelect(req.type, req.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                  />
+                </div>
                 <div className="avatar">{req.employee_name?.substring(0, 2).toUpperCase()}</div>
                 <div className="user-info">
                   <span className="user-name">{req.employee_name}</span>
@@ -382,19 +465,21 @@ const handleApproveAll = async () => {
         {showHistory && (
           <div className="modal-overlay" onClick={() => setShowHistory(false)}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <button className="approvals-btn-close" onClick={() => setShowHistory(false)}>Đóng</button>
               <div className="modal-header">
                 <h3>Lịch sử phê duyệt</h3>
-                <select 
-                  className="history-dropdown"
-                  value={historyFilter}
-                  onChange={(e) => setHistoryFilter(e.target.value)}
-                >
-                  <option value="all">Tất cả đơn</option>
-                  <option value="leave">Nghỉ phép</option>
-                  <option value="overtime">Tăng ca</option>
-                  <option value="explanation">Giải trình</option>
-                </select>
+                <div className="modal-header-actions">
+                  <select 
+                    className="history-dropdown"
+                    value={historyFilter}
+                    onChange={(e) => setHistoryFilter(e.target.value)}
+                  >
+                    <option value="all">Tất cả đơn</option>
+                    <option value="leave">Nghỉ phép</option>
+                    <option value="overtime">Tăng ca</option>
+                    <option value="explanation">Giải trình</option>
+                  </select>
+                  <button className="approvals-btn-close" onClick={() => setShowHistory(false)}>Đóng</button>
+                </div>
                 
               </div>
 
@@ -432,6 +517,7 @@ const handleApproveAll = async () => {
                         <div className="history-meta">
                           <span className={req.status === 'rejected' ? 'status-rejected' : 'status-approved'}>
                             {req.status === 'approved' && <CiCircleCheck size={16} />}
+                            {req.status === 'rejected' && <IoCloseCircleOutline size={16} />}
                             {req.status === 'rejected' ? 'Từ chối' : 'Đã duyệt'}
                           </span>
                           <span className="history-time">
