@@ -25,6 +25,7 @@ const Requests = () => {
     endDate: "",
     reason: "",
   });
+  const [otRequests, setOtRequests] = useState([]);
 
 
 
@@ -212,6 +213,13 @@ const calculateTotalDays = (start, end) => {
       const data = res?.data || res || [];
       setRequests(data);
       setRecentRequests(data.slice(0, 3)); // lấy 3 đơn gần nhất
+    })
+    .catch((err) => console.error(err));
+
+  employeeService
+    .getOvertimeRequests()
+    .then((res) => {
+      setOtRequests(res?.data || res || []);
     })
     .catch((err) => console.error(err));
 }, [user?.id]);
@@ -429,10 +437,13 @@ if (file) {
   }
 }
 
-if (isOverlapping(form.startDate, form.endDate)) {
+const overlapType = isOverlapping(form.startDate, form.endDate);
+if (overlapType) {
   setShowConfirmSubmit(false);
   setNotification({
-    message: "Khoảng thời gian nghỉ bị trùng với đơn đã gửi!",
+    message: overlapType === "ot" 
+      ? "Ngày này bạn đã đăng ký tăng ca, không thể xin nghỉ phép!" 
+      : "Khoảng thời gian nghỉ bị trùng với đơn đã gửi!",
     type: "error",
   });
 
@@ -508,16 +519,37 @@ const calculateDays = () => {
 const isOverlapping = (newStart, newEnd) => {
   const startA = new Date(newStart);
   const endA = new Date(newEnd);
+  startA.setHours(0, 0, 0, 0);
+  endA.setHours(0, 0, 0, 0);
 
-  return requests.some((r) => {
+  // 1. Check overlap with Leave Requests
+  const overlapLeave = requests.some((r) => {
     if (r.status !== "approved" && r.status !== "pending") return false;
 
     const startB = new Date(r.start_datetime);
     const endB = new Date(r.end_datetime);
+    startB.setHours(0, 0, 0, 0);
+    endB.setHours(0, 0, 0, 0);
 
-    // check overlap
     return startA <= endB && endA >= startB;
   });
+
+  if (overlapLeave) return "leave";
+
+  // 2. Check overlap with OT Requests
+  // Since OT is single day, we check if ot_date is within [startA, endA]
+  const overlapOT = otRequests.some((r) => {
+    if (r.status !== "approved" && r.status !== "pending") return false;
+    
+    const otDate = new Date(r.ot_date);
+    otDate.setHours(0, 0, 0, 0);
+
+    return otDate >= startA && otDate <= endA;
+  });
+
+  if (overlapOT) return "ot";
+
+  return null;
 };
 
   return (

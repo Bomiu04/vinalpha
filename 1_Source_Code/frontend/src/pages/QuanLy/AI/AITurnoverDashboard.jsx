@@ -10,42 +10,47 @@ import { useAIProgress } from '../../../contexts/AIProgressContext';
 
 
 export default function AITurnoverDashboard() {
-  const [staffData, setStaffData] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState(null);
   
-  // Dùng Global Context thay vì Local State để không bị mất kết nối khi rời trang
-  const { isAnalyzing, error, runAIAnalysis } = useAIProgress();
+  // Dùng Global Context — state tồn tại khi chuyển trang
+  const { isAnalyzing, error, analyzedList, setFinalAnalyzedList, runAIAnalysis, stopAIAnalysis } = useAIProgress();
   
-  const [stats, setStats] = useState({
-    total: 0, highRisk: 0, medRisk: 0, lowRisk: 0, fraudCount: 0
-  });
+  // Tính stats trực tiếp từ analyzedList (tự động cập nhật khi context thay đổi)
+  const stats = {
+    total: analyzedList.length,
+    highRisk: analyzedList.filter(i => i.risk_level === 'HIGH' && i.alert_type !== 'FRAUD_DETECTION').length,
+    medRisk: analyzedList.filter(i => i.risk_level === 'MEDIUM').length,
+    lowRisk: analyzedList.filter(i => i.risk_level === 'LOW').length,
+    fraudCount: analyzedList.filter(i => i.alert_type === 'FRAUD_DETECTION').length,
+  };
 
   const fetchAlerts = useCallback(async () => {
     try {
-      const processAlertData = (data) => {
-        setStaffData(data);
-        setStats({
-          total: data.length,
-          highRisk: data.filter(i => i.risk_level === 'HIGH' && i.alert_type !== 'FRAUD_DETECTION').length,
-          medRisk: data.filter(i => i.risk_level === 'MEDIUM').length,
-          lowRisk: data.filter(i => i.risk_level === 'LOW').length,
-          fraudCount: data.filter(i => i.alert_type === 'FRAUD_DETECTION').length
-        });
-      };
-
-      // Giả lập gọi API, nếu lỗi sẽ dùng Mock Data
       const token = localStorage.getItem('token');
       const response = await axios.get('http://localhost:5000/api/ai/alerts', { headers: { Authorization: `Bearer ${token}` } });
-      processAlertData(response.data.data);
+      setFinalAnalyzedList(response.data.data); // Cập nhật toàn cục
     } catch {
       console.warn("Không kết nối được API");
     }
+  }, [setFinalAnalyzedList]);
+
+  // Khi quay lại trang: chỉ fetch nếu chưa có dữ liệu và không đang chạy ngầm
+  useEffect(() => {
+    if (!isAnalyzing && analyzedList.length === 0) {
+      fetchAlerts();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
-
   const handleRunAnalysis = () => {
-    runAIAnalysis(fetchAlerts); // Chạy và reload lại dữ liệu khi xong
+    // Context tự reset analyzedList — không cần làm gì ở đây
+    runAIAnalysis(fetchAlerts);
+  };
+
+  const handleStopAnalysis = () => {
+    stopAIAnalysis();
+    // Sau khi dừng, fetch dữ liệu đầy đủ từ DB cho những NV đã xong
+    setTimeout(fetchAlerts, 500);
   };
 
   const parseAiMessage = (msg) => {
@@ -97,13 +102,23 @@ export default function AITurnoverDashboard() {
           <p className="text-sm text-gray-500 font-medium">Hệ thống phân tích hành vi chuyên cần và tọa độ GPS thời gian thực.</p>
         </div>
         
-        <button 
-          onClick={handleRunAnalysis} disabled={isAnalyzing}
-          className="flex items-center gap-2 bg-[#1e1b4b] px-6 py-3 rounded-xl text-sm font-bold text-white hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50"
-        >
-          {isAnalyzing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
-          {isAnalyzing ? "Đang quét dữ liệu..." : "Quét & Phân tích AI"}
-        </button>
+        <div className="flex items-center gap-3">
+          {isAnalyzing && (
+            <button 
+              onClick={handleStopAnalysis}
+              className="flex items-center gap-2 bg-red-100 px-4 py-3 rounded-xl text-sm font-bold text-red-600 hover:bg-red-200 transition-all active:scale-95 border border-red-200"
+            >
+              <X className="w-4 h-4" /> Dừng quét
+            </button>
+          )}
+          <button 
+            onClick={handleRunAnalysis} disabled={isAnalyzing}
+            className="flex items-center gap-2 bg-[#1e1b4b] px-6 py-3 rounded-xl text-sm font-bold text-white hover:bg-black transition-all shadow-lg active:scale-95 disabled:opacity-50"
+          >
+            {isAnalyzing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
+            {isAnalyzing ? "Đang quét dữ liệu..." : "Quét & Phân tích AI"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -174,7 +189,7 @@ export default function AITurnoverDashboard() {
 
       {/* MAIN TABLE */}
       <div className="max-w-6xl mx-auto bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-        <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row justify-between gap-4">
+        <div className="p-6 border-b border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
           <h2 className="text-[16px] font-black text-gray-900 uppercase tracking-tight">Danh sách cảnh báo từ Qwen2</h2>
         </div>
 
@@ -190,9 +205,19 @@ export default function AITurnoverDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 text-sm">
-              {staffData.length === 0 ? (
+              {/* Đang phân tích ngầm, chưa có kết quả nào */}
+              {isAnalyzing && analyzedList.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="py-10 text-center">
+                    <div className="flex flex-col items-center gap-3 text-gray-400">
+                      <div className="w-6 h-6 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+                      <p className="italic text-sm">AI đang phân tích nhân viên đầu tiên...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : analyzedList.length === 0 ? (
                 <tr><td colSpan="5" className="py-10 text-center text-gray-400 italic">Chưa có dữ liệu phân tích.</td></tr>
-              ) : staffData.map((item) => {
+              ) : analyzedList.map((item) => {
                 const empName = item.employee?.full_name || 'Không rõ tên';
                 const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(empName)}&background=random&color=fff`;
                 const aiData = parseAiMessage(item.message);

@@ -26,6 +26,7 @@ const [approverId, setApproverId] = useState(""); // người chọn
 const [recentRequests, setRecentRequests] = useState([]);
 const [view, setView] = useState("create");
 const [requests, setRequests] = useState([]);
+const [leaveRequests, setLeaveRequests] = useState([]);
 const [filterMonth, setFilterMonth] = useState("");
 const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
 const [showConfirmCancel, setShowConfirmCancel] = useState(false);
@@ -220,10 +221,13 @@ if (start < minStart || start > maxStart) {
   return;
 }
 
-if (isOverlap(form.ot_date, form.start_time, form.end_time)) {
+const overlapType = isOverlap(form.ot_date, form.start_time, form.end_time);
+if (overlapType) {
   setShowConfirmSubmit(false);
   setNotification({
-    message: "Bạn đã có đơn tăng ca trùng thời gian!",
+    message: overlapType === "leave" 
+      ? "Ngày này bạn đã đăng ký nghỉ phép, không thể xin tăng ca!" 
+      : "Bạn đã có đơn tăng ca trùng thời gian!",
     type: "error",
   });
 
@@ -387,9 +391,6 @@ useEffect(() => {
     .getOvertimeRequests()
     .then((res) => {
       const data = res?.data || res || [];
-
-      console.log("OT REQUESTS:", data);
-
       setRequests(data);
       setRecentRequests(data.slice(0, 3));
     })
@@ -398,6 +399,13 @@ useEffect(() => {
       setRequests([]);
       setRecentRequests([]);
     });
+
+  employeeService
+    .getLeaveRequests()
+    .then((res) => {
+      setLeaveRequests(res?.data || res || []);
+    })
+    .catch((err) => console.error("Lỗi lấy Leave:", err));
 }, [user?.id]);
 useEffect(() => {
   console.log("STATE REQUESTS:", requests);
@@ -412,7 +420,11 @@ const isOverlap = (newDate, newStart, newEnd) => {
     parseInt(newEnd.split(":")[0]) * 60 +
     parseInt(newEnd.split(":")[1]);
 
-  return requests.some((r) => {
+  const otDate = new Date(newDate);
+  otDate.setHours(0, 0, 0, 0);
+
+  // 1. Check overlap with OT Requests
+  const overlapOT = requests.some((r) => {
     if (r.status === "rejected") return false;
     if (r.ot_date !== newDate) return false;
 
@@ -424,9 +436,26 @@ const isOverlap = (newDate, newStart, newEnd) => {
       parseInt(r.end_time.split(":")[0]) * 60 +
       parseInt(r.end_time.split(":")[1]);
 
-    // overlap condition
     return newStartMin < oldEndMin && newEndMin > oldStartMin;
   });
+
+  if (overlapOT) return "ot";
+
+  // 2. Check overlap with Leave Requests
+  const overlapLeave = leaveRequests.some((r) => {
+    if (r.status !== "approved" && r.status !== "pending") return false;
+
+    const startB = new Date(r.start_datetime);
+    const endB = new Date(r.end_datetime);
+    startB.setHours(0, 0, 0, 0);
+    endB.setHours(0, 0, 0, 0);
+
+    return otDate >= startB && otDate <= endB;
+  });
+
+  if (overlapLeave) return "leave";
+
+  return null;
 };
 
   return (

@@ -7,7 +7,6 @@ export default function AddEmployee({ onBack, onSaveSuccess }) {
   const [formData, setFormData] = useState({
     gender: 'true',
     status: 'active',
-    contract_type: 'probation',
     join_date: new Date().toISOString().split('T')[0],
     send_email: true,
     branch_id: '',
@@ -366,14 +365,7 @@ export default function AddEmployee({ onBack, onSaveSuccess }) {
                 disabled={!formData.department_id || loadingCascade}
                 icon={User}
               />
-              <SelectField 
-                label="Loại hợp đồng" name="contract_type" value={formData.contract_type} onChange={handleChange}
-                options={[
-                  { value: 'probation', label: 'Thử việc' },
-                  { value: 'official', label: 'Chính thức' },
-                  { value: 'part_time', label: 'Bán thời gian' }
-                ]}
-              />
+
               <InputField label="Ngày gia nhập" name="join_date" type="date" value={formData.join_date} onChange={handleChange} />
               <div className="md:col-span-2">
                 <InputField label="Email Công tác" name="work_email" type="email" value={formData.work_email} onChange={handleChange} placeholder="Ví dụ: an.nv@company.com" icon={Mail} />

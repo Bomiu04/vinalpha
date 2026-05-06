@@ -52,7 +52,7 @@ export default function EditEmployee({ employee, onBack, onSaveSuccess }) {
         data.direct_manager_id = data.direct_manager_id || '';
         data.gender = data.gender !== null ? data.gender : '';
         data.status = data.status || 'active';
-        data.contract_type = data.contract_type || '';
+
 
         setFormData(data);
         if (data.avatar_url) {
@@ -244,16 +244,7 @@ export default function EditEmployee({ employee, onBack, onSaveSuccess }) {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold text-slate-700">Loại hợp đồng</label>
-                <select name="contract_type" value={formData.contract_type} onChange={handleChange} className="px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-semibold text-cyan-600 focus:border-cyan-400 focus:outline-none">
-                  <option value="">-- Chọn hợp đồng --</option>
-                  <option value="probation">Thử việc</option>
-                  <option value="fixed_1y">Xác định thời hạn (1 năm)</option>
-                  <option value="fixed_3y">Xác định thời hạn (3 năm)</option>
-                  <option value="indefinite">Không xác định thời hạn</option>
-                </select>
-              </div>
+
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <InputField label="Ngày gia nhập" name="join_date" type="date" value={formData.join_date} onChange={handleChange} />

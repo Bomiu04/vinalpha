@@ -144,7 +144,7 @@ const getTimeRemaining = (checkInTime, checkOutTime, currentTime) => {
 
   if (!checkInTime) {
     if (now < shiftStart) {
-      return `Còn ${Math.floor((shiftStart - now) / 60000)} phút`;
+      return `Còn ${Math.floor((shiftStart - now) % 3600000)} giờ ${Math.floor((shiftStart - now) % 60000)} phút`;
     }
     if (now >= shiftEnd) {
       return 'Hết ca';
