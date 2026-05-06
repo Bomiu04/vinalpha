@@ -2,11 +2,15 @@
 .login-container {
   min-height: 100vh;
   background-color: #f4f6f8;
+  background-image: url('/background.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: center;
-  padding: 2rem 1rem;
+  align-items: flex-end;
+  padding: 2rem 10vw; /* Đẩy sang khoảng trắng bên phải */
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -262,4 +266,13 @@
   color: #9ca3af;
   cursor: not-allowed;
   text-decoration: none;
+}
+
+/* Responsive cho mobile */
+@media (max-width: 768px) {
+  .login-container {
+    align-items: center;
+    padding: 2rem 1rem;
+    background-position: left center;
+  }
 }
