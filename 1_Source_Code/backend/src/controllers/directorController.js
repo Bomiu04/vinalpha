@@ -23,7 +23,7 @@ const getSummary = async (req, res) => {
       LEFT JOIN position p ON e.position_id = p.id
       LEFT JOIN attendance a 
         ON a.employee_id = e.id
-        AND a.attendance_date = CURRENT_DATE
+        AND a.attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
       ${whereClause}
     `, { replacements, type: QueryTypes.SELECT });
     
@@ -60,7 +60,7 @@ const getDepartmentsStats = async (req, res) => {
       LEFT JOIN employee e ON e.position_id = p.id AND e.status = 'active'
       LEFT JOIN attendance a 
         ON a.employee_id = e.id
-        AND a.attendance_date = CURRENT_DATE
+        AND a.attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
       ${scopingClause}
       GROUP BY d.id, d.department_name
       ORDER BY d.department_name
@@ -93,7 +93,7 @@ const getManagers = async (req, res) => {
       LEFT JOIN employee e ON d.manager_id = e.id
       LEFT JOIN attendance a 
         ON a.employee_id = e.id
-        AND a.attendance_date = CURRENT_DATE
+        AND a.attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
       ${whereClause}
       ORDER BY d.department_name
     `, { replacements: { deptId: department_id }, type: QueryTypes.SELECT });

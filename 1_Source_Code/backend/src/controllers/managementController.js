@@ -43,7 +43,7 @@ const getEmployees = async (req, res) => {
       LEFT JOIN department d ON p.department_id = d.id
       LEFT JOIN attendance a
         ON a.employee_id = e.id
-        AND a.attendance_date = CURRENT_DATE
+        AND a.attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
       ${whereClause}
       ORDER BY e.created_at DESC;
     `;
@@ -304,7 +304,7 @@ const getPresentEmployees = async (req, res) => {
       LEFT JOIN position p ON e.position_id = p.id
       LEFT JOIN work_location wl ON a.work_location_id = wl.id
       WHERE e.status = 'active'
-        AND a.attendance_date = CURRENT_DATE
+        AND a.attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
         AND a.check_in_time IS NOT NULL
         ${whereClause}
       ORDER BY a.check_in_time ASC
@@ -349,8 +349,8 @@ const getAbsentEmployees = async (req, res) => {
         FROM leave_request
         WHERE leave_request.employee_id = e.id
           AND leave_request.status = 'approved'
-          AND CURRENT_DATE >= DATE(leave_request.start_datetime)
-          AND CURRENT_DATE <= DATE(leave_request.end_datetime)
+          AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date >= DATE(leave_request.start_datetime)
+          AND (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date <= DATE(leave_request.end_datetime)
         ORDER BY leave_request.created_at DESC
         LIMIT 1
       ) lr ON TRUE
@@ -358,7 +358,7 @@ const getAbsentEmployees = async (req, res) => {
         AND e.id NOT IN (
           SELECT employee_id 
           FROM attendance
-          WHERE attendance_date = CURRENT_DATE
+          WHERE attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
             AND check_in_time IS NOT NULL
         )
         ${scopingClause}
@@ -504,9 +504,9 @@ const getTenureStats = async (req, res) => {
     const query = `
       SELECT 
         CASE 
-          WHEN AGE(CURRENT_DATE, join_date) < INTERVAL '1 year' THEN 'fresher'
-          WHEN AGE(CURRENT_DATE, join_date) < INTERVAL '3 years' THEN 'junior'
-          WHEN AGE(CURRENT_DATE, join_date) < INTERVAL '5 years' THEN 'mid'
+          WHEN AGE((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, join_date) < INTERVAL '1 year' THEN 'fresher'
+          WHEN AGE((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, join_date) < INTERVAL '3 years' THEN 'junior'
+          WHEN AGE((CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, join_date) < INTERVAL '5 years' THEN 'mid'
           ELSE 'senior'
         END AS level,
         COUNT(*) as count
@@ -1190,7 +1190,7 @@ const getRequestsStats = async (req, res) => {
         }
       );
 
-      monthParam = latestMonthRow[0]?.latest_month || new Date().toISOString().slice(0, 7);
+      monthParam = latestMonthRow[0]?.latest_month || new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 7);
     }
 
     const [year, month] = monthParam.split('-').map(Number);
@@ -1465,7 +1465,7 @@ const getAttendanceStats = async (req, res) => {
         { type: db.QueryTypes.SELECT }
       );
 
-      monthParam = latestMonthRow[0]?.latest_month || new Date().toISOString().slice(0, 7);
+      monthParam = latestMonthRow[0]?.latest_month || new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 7);
     }
 
     const [y, m] = monthParam.split('-').map((n) => parseInt(n, 10));

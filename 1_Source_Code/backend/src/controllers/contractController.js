@@ -142,7 +142,7 @@ const contractController = {
       if (month && year) {
         dateFilter = `EXTRACT(MONTH FROM c.end_date) = :month AND EXTRACT(YEAR FROM c.end_date) = :year`;
       } else {
-        dateFilter = `c.end_date <= CURRENT_DATE + INTERVAL '30 days' AND c.end_date >= CURRENT_DATE`;
+        dateFilter = `c.end_date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date + INTERVAL '30 days' AND c.end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date`;
       }
 
       const { role, department_id } = req.user;
@@ -165,7 +165,7 @@ const contractController = {
           c.base_salary,
           c.allowances,
           TO_CHAR(c.end_date, 'DD/MM/YYYY') as end_date,
-          (c.end_date - CURRENT_DATE) as days_left
+          (c.end_date - (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date) as days_left
         FROM contract c
         JOIN employee e ON c.employee_id = e.id
         LEFT JOIN position p ON e.position_id = p.id

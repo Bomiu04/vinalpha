@@ -38,6 +38,7 @@ export const AttendanceUI = ({ props }: { props: any }) => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [isMapVisible, setIsMapVisible] = useState(false);
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const isValidTimeValue = (value: any) => {
     if (value === undefined || value === null) return false;
@@ -95,7 +96,24 @@ export const AttendanceUI = ({ props }: { props: any }) => {
           <View style={styles.iconWrapper}><Feather name="map-pin" size={40} color="#00b4d8" /></View>
           <Text style={styles.loginTitle}>HRM Chấm Công</Text>
           <TextInput style={styles.input} placeholder="Tên đăng nhập" value={props.username} onChangeText={props.setUsername} autoCapitalize="none" />
-          <TextInput style={styles.input} placeholder="Mật khẩu" value={props.password} onChangeText={props.setPassword} secureTextEntry />
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Mật khẩu"
+              placeholderTextColor="#94a3b8"
+              value={props.password}
+              onChangeText={props.setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.eyeButton}
+              activeOpacity={0.7}
+            >
+              <Feather name={showPassword ? 'eye' : 'eye-off'} size={18} color="#94a3b8" />
+            </TouchableOpacity>
+          </View>
           
           <View style={styles.rememberRow}>
             <TouchableOpacity 
@@ -426,6 +444,25 @@ const styles = StyleSheet.create({
   iconWrapper: { alignItems: 'center', marginBottom: 15 },
   loginTitle: { fontSize: 26, fontWeight: '900', textAlign: 'center', color: '#0f172a', marginBottom: 20 },
   input: { backgroundColor: '#f8fafc', padding: 15, borderRadius: 12, marginBottom: 15, borderWidth: 1, borderColor: '#e2e8f0' },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginBottom: 15,
+    paddingHorizontal: 15,
+  },
+  passwordInput: {
+    flex: 1,
+    paddingVertical: 15,
+    fontSize: 14,
+    color: '#0f172a',
+  },
+  eyeButton: {
+    padding: 4,
+  },
   
   rememberRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, marginTop: -5 },
   rememberBtn: { flexDirection: 'row', alignItems: 'center', gap: 8 },
