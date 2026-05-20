@@ -29,7 +29,7 @@ exports.getDashboard = async (req, res) => {
         COUNT(*) FILTER (WHERE status IN ('late','early_leave'))::int AS late,
         COUNT(*) FILTER (WHERE status = 'absent')::int AS absent
       FROM attendance
-      WHERE employee_id = $1 AND EXTRACT(MONTH FROM attendance_date) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM attendance_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+      WHERE employee_id = $1 AND EXTRACT(MONTH FROM attendance_date) = EXTRACT(MONTH FROM (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')) AND EXTRACT(YEAR FROM attendance_date) = EXTRACT(YEAR FROM (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh'))
     `, { bind: [id], type: QueryTypes.SELECT });
 
     res.json({ employee, stats: statsResult[0] });
@@ -68,7 +68,7 @@ exports.getAttendanceSummary = async (req, res) => {
           total_work_hours
         FROM attendance
         WHERE employee_id = $1
-          AND attendance_date = CURRENT_DATE
+          AND attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
         LIMIT 1
       `,
       { bind: [id], type: QueryTypes.SELECT }
@@ -89,7 +89,7 @@ exports.getAttendanceSummary = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: {
-        server_date: new Date().toISOString().slice(0, 10),
+        server_date: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10),
         workLocations: workLocations.map(wl => ({
           work_location_id: wl.work_location_id,
           location_name: wl.location_name,
@@ -572,7 +572,7 @@ exports.getManagerZoneAttendance = async (req, res) => {
     const workLocation = managerLocations[0];
 
     const teamAttendanceResult = await db.query(
-      `SELECT e.id AS employee_id, e.employee_code, e.full_name, d.department_name, p.position_name, a.check_in_time, a.check_out_time, a.status, a.check_in_latitude, a.check_in_longitude, a.check_out_latitude, a.check_out_longitude, COALESCE(a.check_out_latitude, a.check_in_latitude) AS live_latitude, COALESCE(a.check_out_longitude, a.check_in_longitude) AS live_longitude FROM employee e LEFT JOIN position p ON e.position_id = p.id LEFT JOIN department d ON p.department_id = d.id LEFT JOIN attendance a ON a.employee_id = e.id AND a.attendance_date = CURRENT_DATE WHERE d.branch_id = $1 AND a.check_in_time IS NOT NULL ORDER BY a.check_in_time DESC`,
+      `SELECT e.id AS employee_id, e.employee_code, e.full_name, d.department_name, p.position_name, a.check_in_time, a.check_out_time, a.status, a.check_in_latitude, a.check_in_longitude, a.check_out_latitude, a.check_out_longitude, COALESCE(a.check_out_latitude, a.check_in_latitude) AS live_latitude, COALESCE(a.check_out_longitude, a.check_in_longitude) AS live_longitude FROM employee e LEFT JOIN position p ON e.position_id = p.id LEFT JOIN department d ON p.department_id = d.id LEFT JOIN attendance a ON a.employee_id = e.id AND a.attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date WHERE d.branch_id = $1 AND a.check_in_time IS NOT NULL ORDER BY a.check_in_time DESC`,
       { bind: [workLocation.branch_id], type: QueryTypes.SELECT }
     );
 

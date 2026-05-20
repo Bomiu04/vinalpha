@@ -130,7 +130,7 @@ active_assignments AS (
            WHEN branch_id IS NOT NULL THEN 3
          END as priority
   FROM location_assignment
-  WHERE (is_temporary = false OR end_date >= CURRENT_DATE OR end_date IS NULL)
+  WHERE (is_temporary = false OR end_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date OR end_date IS NULL)
     AND (
       employee_id = (SELECT emp_id FROM emp_info) OR
       department_id = (SELECT dept_id FROM emp_info) OR
@@ -169,7 +169,7 @@ async function fetchTodayAttendance(employeeId) {
     `
       SELECT id, check_in_time, check_out_time
       FROM attendance
-      WHERE employee_id = $1 AND attendance_date = CURRENT_DATE
+      WHERE employee_id = $1 AND attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
       LIMIT 1
     `,
     { bind: [employeeId], type: QueryTypes.SELECT }
@@ -293,7 +293,7 @@ async function checkInEmployee(employeeId, lat, lng, options = {}) {
       device_ip,
       status
     )
-    VALUES ($1, $2, CURRENT_DATE, NOW(), $3, $4, $5, $6)
+    VALUES ($1, $2, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, NOW(), $3, $4, $5, $6)
     RETURNING id, attendance_date, check_in_time, check_out_time, status
   `;
   const [insertRows] = await db.query(sql, {

@@ -147,7 +147,7 @@ const getSalary = async (req, res) => {
     const result = await db.query(`
       SELECT COALESCE(SUM(net_salary),0)::float AS total_salary
       FROM payroll
-      WHERE month_year = TO_CHAR(CURRENT_DATE, 'MM-YYYY')
+      WHERE month_year = TO_CHAR(CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh', 'MM-YYYY')
         AND status = 'approved'
     `, { type: db.QueryTypes.SELECT });
     res.json(result[0] || { total_salary: 0 });
@@ -271,7 +271,7 @@ const getEmployeesByDepartment = async (req, res) => {
       INNER JOIN position p ON emp.position_id = p.id
       LEFT JOIN attendance a
         ON a.employee_id = emp.id
-        AND a.attendance_date = CURRENT_DATE
+        AND a.attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
       WHERE p.department_id = :id
       ORDER BY emp.full_name
     `, {
@@ -1480,7 +1480,7 @@ const getDashboardOverview = async (req, res) => {
     // 2. Hiện diện hôm nay (on_time, late, early_leave)
     const [[{ present_today }]] = await db.query(`
       SELECT COUNT(DISTINCT employee_id)::int as present_today 
-      FROM attendance WHERE attendance_date = CURRENT_DATE AND status != 'absent'
+      FROM attendance WHERE attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date AND status != 'absent'
     `);
 
     // 3. Tổng yêu cầu đang pending (các đơn thuộc phạm vi Giám đốc + Bảng lương chờ duyệt)
@@ -1571,7 +1571,7 @@ const getDashboardOverview = async (req, res) => {
       SELECT e.full_name as name, d.department_name as dept, COALESCE(a.status, 'absent') as status 
       FROM department d
       LEFT JOIN employee e ON d.manager_id = e.id
-      LEFT JOIN attendance a ON e.id = a.employee_id AND a.attendance_date = CURRENT_DATE
+      LEFT JOIN attendance a ON e.id = a.employee_id AND a.attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
       WHERE e.id IS NOT NULL
       ORDER BY d.department_name
     `);
@@ -1587,7 +1587,7 @@ const getDashboardOverview = async (req, res) => {
       FROM department d
       JOIN "position" p ON d.id = p.department_id
       JOIN employee e ON p.id = e.position_id AND e.status = 'active'
-      LEFT JOIN attendance a ON e.id = a.employee_id AND a.attendance_date = CURRENT_DATE
+      LEFT JOIN attendance a ON e.id = a.employee_id AND a.attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
       GROUP BY d.id, d.department_name
     `);
 
