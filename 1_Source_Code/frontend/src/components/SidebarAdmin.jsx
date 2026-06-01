@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, UserCog, Settings, LogOut, HelpCircle, Bell } from 'lucide-react';
+import { LayoutDashboard, UserCog, ClipboardList, LogOut, HelpCircle } from 'lucide-react';
 import LogoutModal from './LogoutModal';
 
 const SidebarAdmin = () => {
@@ -11,9 +11,9 @@ const SidebarAdmin = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const menuItems = [
-    { path: '/Admin/dashboard', icon: <LayoutDashboard size={20} />, label: 'Phân công chấm công' },
+    { path: '/Admin/dashboard', icon: <LayoutDashboard size={20} />, label: 'Tổng quan' },
     { path: '/Admin/users', icon: <UserCog size={20} />, label: 'Quản lý tài khoản' },
-    { path: '/Admin/LocationSettings', icon: <Settings size={20} />, label: 'Cài đặt vị trí chấm công' },
+    { path: '/Admin/attendance', icon: <ClipboardList size={20} />, label: 'Quản lý chấm công' },
   ];
 
   // Hàm khi bấm nút Đăng Xuất ở Sidebar -> Chỉ hiện Modal
@@ -34,7 +34,7 @@ const SidebarAdmin = () => {
     <aside className="sidebar">
       {/* 1. LOGO */}
       <div className="logo">
-        <img src="/logo.png" alt="HR PeopleTech" />
+        <img src="/VINALPHA_logo.svg" alt="Vinalpha HR" />
       </div>
 
       {/* 2. MENU CHÍNH */}

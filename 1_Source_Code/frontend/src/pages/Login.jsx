@@ -57,9 +57,10 @@ const Login = () => {
           localStorage.setItem('user', JSON.stringify(data.user));
           localStorage.setItem('token', data.token);
 
-          if (userRole === 'ADMIN') navigate('/Admin/dashboard');
-          else if (userRole === 'DIRECTOR') navigate('/GiamDoc/Dashboard');
-          else if (userRole === 'MANAGER') navigate('/QuanLy/Dashboard');
+          const r = userRole?.toLowerCase();
+          if (r === 'admin') navigate('/Admin/dashboard');
+          else if (r === 'director') navigate('/GiamDoc/Dashboard');
+          else if (r === 'manager') navigate('/QuanLy/Dashboard');
           else navigate('/NhanVien/Dashboard');
         } else {
           setError('T\u00E0i kho\u1EA3n ch\u01B0a \u0111\u01B0\u1EE3c ph\u00E2n quy\u1EC1n h\u1EC7 th\u1ED1ng!');
@@ -96,15 +97,17 @@ const Login = () => {
 
   return (
     <div className="login-container">
+      <img src="/VINALPHA_logo.svg" alt="Vinalpha" className="login-bg-logo" />
       <div className="login-card">
         {mode === 'LOGIN' ? (
           <>
             <div className="login-top-bar"></div>
             <div className="login-header">
+              <img src="/VINALPHA_logo.svg" alt="Vinalpha Logo" className="login-logo" />
               <h2>{'\u0110\u0103ng nh\u1EADp'}</h2>
               <p>
                 {
-                  'H\u1EC7 th\u1ED1ng Qu\u1EA3n l\u00FD Nh\u00E2n s\u1EF1 GPS'
+                  'Vinalpha \u2013 H\u1EC7 th\u1ED1ng Qu\u1EA3n l\u00FD Nh\u00E2n s\u1EF1'
                 }
               </p>
             </div>
@@ -205,7 +208,7 @@ const Login = () => {
 
         <div className="login-footer">
           {
-            'T\u00E0i kho\u1EA3n qu\u1EA3n tr\u1ECB h\u1EC7 th\u1ED1ng GPS'
+            'T\u00E0i kho\u1EA3n qu\u1EA3n tr\u1ECB h\u1EC7 th\u1ED1ng Vinalpha'
           }
         </div>
       </div>

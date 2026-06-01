@@ -34,18 +34,12 @@ const MainLayout = () => {
 
   // 👉 4. Hàm xử lý khi click vào Profile (Bây giờ đã có thể lấy biến role an toàn)
   const handleProfileClick = () => {
-    switch (role) {
-      case 'ADMIN': 
-        navigate('/Admin/Profile'); 
+    switch (role?.toLowerCase()) {
+      case 'admin':
+        navigate('/Admin/Profile');
         break;
-      case 'DIRECTOR': 
-        navigate('/NhanVien/Profile');  
-        break;
-      case 'MANAGER': 
-        navigate('/NhanVien/Profile'); 
-        break;
-      default: 
-        navigate('/NhanVien/Profile'); 
+      default:
+        navigate('/NhanVien/Profile');
         break;
     }
   };
@@ -57,10 +51,10 @@ const MainLayout = () => {
 
   // 6. Hàm gọi Sidebar tương ứng
   const renderSidebar = () => {
-    switch (role) {
-      case 'ADMIN': return <SidebarAdmin />;
-      case 'DIRECTOR': return <SidebarGiamDoc />;
-      case 'MANAGER': return <SidebarQuanLy />;
+    switch (role?.toLowerCase()) {
+      case 'admin': return <SidebarAdmin />;
+      case 'director': return <SidebarGiamDoc />;
+      case 'manager': return <SidebarQuanLy />;
       default: return <SidebarNhanVien />;
     }
   };

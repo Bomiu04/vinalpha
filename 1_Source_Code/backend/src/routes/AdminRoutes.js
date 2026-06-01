@@ -83,6 +83,34 @@ router.post('/force-reset-password', adminForceResetPassword);
 router.post('/sync-managers', syncManagerAssignments); // Đồng bộ direct_manager_id toàn hệ thống
 
 // ==========================================
+// QUẢN LÝ CHẤM CÔNG (ADMIN)
+// ==========================================
+router.get('/attendance', async (req, res) => {
+  const db = require('../config/database');
+  const { QueryTypes } = require('sequelize');
+  try {
+    const date = req.query.date || new Date(new Date().getTime() + 7*3600000).toISOString().slice(0,10);
+    const rows = await db.query(`
+      SELECT
+        e.employee_code, e.full_name,
+        d.department_name,
+        a.check_in_time, a.check_out_time,
+        a.status, a.total_work_hours,
+        a.attendance_date
+      FROM employee e
+      LEFT JOIN attendance a ON a.employee_id = e.id AND a.attendance_date = :date
+      LEFT JOIN position p ON e.position_id = p.id
+      LEFT JOIN department d ON p.department_id = d.id
+      WHERE e.status = 'active'
+      ORDER BY d.department_name, e.full_name
+    `, { replacements: { date }, type: QueryTypes.SELECT });
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ==========================================
 // QUẢN LÝ ĐỊA ĐIỂM CHẤM CÔNG (LOCATIONS)
 // Gốc: /api/admin/locations
 // ==========================================

@@ -204,7 +204,25 @@ async function checkInEmployee(employeeId, lat, lng, options = {}) {
     skipWifiIpValidation = false,
     forceWorkLocationId = null,
     is_mocked = false,
+    simpleMode = false,
   } = options;
+
+  if (simpleMode) {
+    const attendanceToday = await fetchTodayAttendance(employeeId);
+    if (attendanceToday && attendanceToday.check_in_time) {
+      return { ok: false, statusCode: 409, message: 'Bạn đã check-in hôm nay. Không thể check-in lần thứ 2.' };
+    }
+    const now = new Date();
+    const status = await getAttendanceStatusForCheckIn(now);
+    if (attendanceToday && !attendanceToday.check_in_time) {
+      const sql = `UPDATE attendance SET check_in_time = NOW(), device_ip = $2, status = $3 WHERE id = $1 RETURNING id, attendance_date, check_in_time, check_out_time, status`;
+      const [updateRows] = await db.query(sql, { bind: [attendanceToday.id, deviceIp, status] });
+      return { ok: true, statusCode: 200, data: updateRows[0], workLocation: null };
+    }
+    const sql = `INSERT INTO attendance (employee_id, attendance_date, check_in_time, device_ip, status) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Ho_Chi_Minh')::date, NOW(), $2, $3) RETURNING id, attendance_date, check_in_time, check_out_time, status`;
+    const [insertRows] = await db.query(sql, { bind: [employeeId, deviceIp, status] });
+    return { ok: true, statusCode: 201, data: insertRows[0], workLocation: null };
+  }
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return { ok: false, statusCode: 400, message: 'Thiếu latitude/longitude hợp lệ.' };
@@ -315,7 +333,25 @@ async function checkOutEmployee(employeeId, lat, lng, options = {}) {
     skipWifiIpValidation = false,
     forceWorkLocationId = null,
     is_mocked = false,
+    simpleMode = false,
   } = options;
+
+  if (simpleMode) {
+    const attendanceToday = await fetchTodayAttendance(employeeId);
+    if (!attendanceToday || !attendanceToday.check_in_time) {
+      return { ok: false, statusCode: 409, message: 'Bạn chưa check-in hôm nay. Không thể checkout.' };
+    }
+    if (attendanceToday.check_out_time) {
+      return { ok: false, statusCode: 409, message: 'Bạn đã checkout hôm nay rồi.' };
+    }
+    const now = new Date();
+    const checkInDateObj = new Date(attendanceToday.check_in_time);
+    const status = await getAttendanceStatusForCheckOut(checkInDateObj, now);
+    const standardWorkHours = await calcStandardWorkHours(checkInDateObj, now);
+    const sql = `UPDATE attendance SET check_out_time = NOW(), device_ip = $2, status = $3, total_work_hours = $4, check_out_note = COALESCE($5, check_out_note) WHERE id = $1 RETURNING id, attendance_date, check_in_time, check_out_time, status, total_work_hours`;
+    const [updateRows] = await db.query(sql, { bind: [attendanceToday.id, deviceIp, status, standardWorkHours, checkOutNote] });
+    return { ok: true, statusCode: 200, data: updateRows[0], workLocation: null };
+  }
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return { ok: false, statusCode: 400, message: 'Thiếu latitude/longitude hợp lệ.' };

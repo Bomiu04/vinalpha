@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaAngleRight } from "react-icons/fa";
 import { 
@@ -99,7 +99,7 @@ const SidebarQuanLy = () => {
       
       {/* LOGO */}
       <div className="logo">
-        <img src="/logo.png" alt="HR PeopleTech" />
+        <img src="/VINALPHA_logo.svg" alt="Vinalpha HR" />
       </div>
 
       {/* MENU */}

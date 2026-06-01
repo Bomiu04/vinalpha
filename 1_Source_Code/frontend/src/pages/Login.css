@@ -36,6 +36,27 @@
   left: 0;
 }
 
+/* Logo góc trên trái nền */
+.login-bg-logo {
+  position: fixed;
+  top: 20px;
+  left: 32px;
+  width: 130px;
+  height: auto;
+  object-fit: contain;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Logo trong card */
+.login-logo {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 8px;
+}
+
 /* Tiêu đề */
 .login-header h2 {
   font-size: 24px;

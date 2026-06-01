@@ -329,84 +329,16 @@ exports.getAttendanceHistory = async (req, res) => {
 exports.checkIn = async (req, res) => {
   try {
     const { id } = req.params;
-    const { latitude, longitude, is_mocked } = req.body || {};
-    const lat = Number(latitude);
-    const lng = Number(longitude);
     const io = req.app.get('socketio');
     const clientIp = getClientIp(req);
-    console.log(`[checkIn DEBUG] clientIp="${clientIp}" | socket="${req.socket?.remoteAddress}" | xff="${req.headers['x-forwarded-for']}" | req.ip="${req.ip}"`);
 
-    // ✅ HARD-BLOCK: Kiểm tra WiFi IP tại tầng controller trước khi gọi service
-    try {
-      const workLocationsForIp = await fetchWorkLocations(id);
-      const primaryWl = workLocationsForIp[0] || null;
-      if (primaryWl) {
-        const allowed_ips = primaryWl.allowed_ips || [];
-        if (allowed_ips.length > 0 && !isIpAllowed(clientIp, allowed_ips)) {
-          console.warn(`[checkIn] IP bị chặn: clientIp=${clientIp}, allowed=${JSON.stringify(allowed_ips)}, employee=${id}`);
-          return res.status(403).json({
-            success: false,
-            message: 'Lỗi: Thiết bị chưa kết nối đúng WiFi văn phòng (IP không hợp lệ).'
-          });
-        }
-      }
-    } catch (ipCheckErr) {
-      console.error('[checkIn] Lỗi kiểm tra WiFi IP:', ipCheckErr.message);
-    }
-
-    // 🚀 DYNAMIC LOCATION: Lấy tọa độ chuẩn từ bảng work_location (không còn hardcode)
-    if (latitude && longitude) {
-      try {
-        const workLocations = await fetchWorkLocations(id);
-        if (workLocations && workLocations.length > 0) {
-          // Tìm địa điểm gần nhất với vị trí check-in của nhân viên
-          let nearestWl = workLocations[0];
-          let minDistance = getDistanceFromLatLonInM(latitude, longitude, Number(nearestWl.latitude), Number(nearestWl.longitude));
-
-          for (let i = 1; i < workLocations.length; i++) {
-            const wl = workLocations[i];
-            const dist = getDistanceFromLatLonInM(latitude, longitude, Number(wl.latitude), Number(wl.longitude));
-            if (dist < minDistance) {
-              minDistance = dist;
-              nearestWl = wl;
-            }
-          }
-
-          const allowedRadius = Number(nearestWl.radius_meters) || 500;
-
-          // Nếu lệch quá bán kính HOẶC sử dụng Mock GPS -> Kích hoạt AI ngầm
-          if (minDistance > allowedRadius || is_mocked) {
-            analyzeFraudWithAI(
-              req.user?.employee_id || req.user?.id || id,
-              minDistance,
-              latitude,
-              longitude,
-              req.user?.full_name || 'Không rõ',
-              nearestWl.location_name || 'Văn phòng',
-              Number(nearestWl.latitude),
-              Number(nearestWl.longitude),
-              allowedRadius,
-              is_mocked
-            );
-          }
-        }
-      } catch (locErr) {
-        console.error('Lỗi fetch work_location cho AI fraud check:', locErr.message);
-      }
-    }
-
-    const result = await checkInEmployee(id, lat, lng, {
+    const result = await checkInEmployee(id, 0, 0, {
       deviceIp: clientIp,
       io,
-      skipGeofenceValidation: false,
-      is_mocked,
+      simpleMode: true,
     });
     if (!result.ok) {
-      return res.status(result.statusCode).json({
-        success: false,
-        message: result.message,
-        ...(result.extra || {}),
-      });
+      return res.status(result.statusCode).json({ success: false, message: result.message });
     }
     return res.status(result.statusCode).json({ success: true, message: 'Check-in thành công!', data: result.data });
   } catch (error) {
@@ -422,42 +354,16 @@ exports.checkIn = async (req, res) => {
 exports.checkOut = async (req, res) => {
   try {
     const { id } = req.params;
-    const { latitude, longitude } = req.body || {};
-    const lat = Number(latitude);
-    const lng = Number(longitude);
     const io = req.app.get('socketio');
     const clientIp = getClientIp(req);
 
-    // ✅ HARD-BLOCK: Kiểm tra WiFi IP tại tầng controller trước khi gọi service
-    try {
-      const workLocationsForIp = await fetchWorkLocations(id);
-      const primaryWl = workLocationsForIp[0] || null;
-      if (primaryWl) {
-        const allowed_ips = primaryWl.allowed_ips || [];
-        if (allowed_ips.length > 0 && !isIpAllowed(clientIp, allowed_ips)) {
-          console.warn(`[checkOut] IP bị chặn: clientIp=${clientIp}, allowed=${JSON.stringify(allowed_ips)}, employee=${id}`);
-          return res.status(403).json({
-            success: false,
-            message: 'Lỗi: Thiết bị chưa kết nối đúng WiFi văn phòng (IP không hợp lệ).'
-          });
-        }
-      }
-    } catch (ipCheckErr) {
-      console.error('[checkOut] Lỗi kiểm tra WiFi IP:', ipCheckErr.message);
-    }
-
-    const result = await checkOutEmployee(id, lat, lng, {
+    const result = await checkOutEmployee(id, 0, 0, {
       deviceIp: clientIp,
       io,
-      skipGeofenceValidation: false,
-      checkOutNote: null,
+      simpleMode: true,
     });
     if (!result.ok) {
-      return res.status(result.statusCode).json({
-        success: false,
-        message: result.message,
-        ...(result.extra || {}),
-      });
+      return res.status(result.statusCode).json({ success: false, message: result.message });
     }
     return res.status(200).json({ success: true, message: 'Checkout thành công!', data: result.data });
   } catch (error) {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaAngleRight } from "react-icons/fa";
 import { 
@@ -54,7 +54,7 @@ const SidebarGiamDoc = () => {
     <aside className="sidebar flex flex-col h-screen">
       {/* 1. LOGO */}
       <div className="logo">
-        <img src="/logo.png" alt="HR PeopleTech" />
+        <img src="/VINALPHA_logo.svg" alt="Vinalpha HR" />
       </div>
 
       {/* 2. MENU CHÍNH */}

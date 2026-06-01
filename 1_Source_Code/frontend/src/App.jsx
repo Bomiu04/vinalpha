@@ -15,7 +15,7 @@ import ResetPassword from './pages/ResetPassword';
 // ==========================================
 import AdminDashboard from './pages/Admin/Dashboard';
 import AdminUsers from './pages/Admin/Users';
-import LocationSettings from './pages/Admin/LocationSettings';
+import AdminAttendance from './pages/Admin/AdminAttendance';
 
 // ==========================================
 // 3. GIÁM ĐỐC (DIRECTOR) PAGES
@@ -132,7 +132,7 @@ function App() {
           <Route path="/Admin" element={<Navigate to="/Admin/dashboard" replace />} />
           <Route path="/Admin/dashboard" element={<AdminDashboard />} />
           <Route path="/Admin/users" element={<AdminUsers />} />
-          <Route path="/Admin/LocationSettings" element={<LocationSettings />} />
+          <Route path="/Admin/attendance" element={<AdminAttendance />} />
 
           {/* --- ROUTES GIÁM ĐỐC --- */}
           <Route path="/GiamDoc/dashboard" element={<GiamDocDashboard />} />
