@@ -10,7 +10,6 @@ import SidebarQuanLy from '../components/SidebarQuanLy';
 
 // IMPORT COMPONENT CHUÔNG THÔNG BÁO TẠI ĐÂY
 import NotificationBell from '../components/Notifications/NotificationBell';
-import HRChatbotWidget from '../components/HRChatbotWidget';
 
 const MainLayout = () => {
   // 1. Lấy user từ Storage
@@ -130,8 +129,6 @@ const MainLayout = () => {
         
       </main>
 
-      {/* HR CHATBOT — Nổi trên mọi trang, tự ẩn nếu không phải EMPLOYEE */}
-      <HRChatbotWidget />
     </div>
   );
 };

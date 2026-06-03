@@ -59,9 +59,8 @@ const SidebarQuanLy = () => {
       label: 'Thống kê',
       icon: <Calculator size={20} />,
       children: [
-        { path: '/QuanLy/statistics/requests', label: 'Đơn từ & phê duyệt' },
-        { path: '/QuanLy/statistics/changes', label: 'Biến động nhân sự' },
-        { path: '/QuanLy/statistics/attendance', label: 'Chấm công & chuyên cần' }
+        { path: '/QuanLy/statistics/attendance', label: 'Chấm công' },
+        { path: '/QuanLy/statistics/salary', label: 'Bảng lương' },
       ]
     },
     { path: '/QuanLy/Employees', icon: <Users size={20} />, label: 'Quản lý nhân sự' },

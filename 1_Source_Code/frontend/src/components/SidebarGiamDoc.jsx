@@ -1,10 +1,10 @@
 ﻿import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaAngleRight } from "react-icons/fa";
-import { 
-  Home, Building, Users, FileText, MapPin, 
-  Briefcase, CheckSquare, Settings, HelpCircle, 
-  LogOut, Calculator, Bell 
+import {
+  Home, Users, FileText,
+  Briefcase, CheckSquare, Settings, HelpCircle,
+  LogOut, Calculator, Bell
 } from 'lucide-react';
 import LogoutModal from './LogoutModal';
 
@@ -21,19 +21,14 @@ const SidebarGiamDoc = () => {
   const [openStats, setOpenStats] = useState(location.pathname.includes('/QuanLy/statistics'));
 
   const statsItems = [
-    { path: '/QuanLy/statistics/requests', label: 'Đơn từ & phê duyệt' },
-    { path: '/QuanLy/statistics/contracts', label: 'Hợp đồng lao động' },
-    { path: '/QuanLy/statistics/changes', label: 'Biến động nhân sự' },
-    { path: '/QuanLy/statistics/salary', label: 'Lương & chi phí' },
-    { path: '/QuanLy/statistics/attendance', label: 'Chấm công & chuyên cần' }
+    { path: '/QuanLy/statistics/attendance', label: 'Chấm công' },
+    { path: '/QuanLy/statistics/salary', label: 'Bảng lương' },
   ];
 
   const menuItems = [
     { path: '/GiamDoc/dashboard', icon: <Home size={20} />, label: 'Trang chủ' },
-    { path: '/GiamDoc/departments', icon: <Building size={20} />, label: 'Phòng ban' },
     { path: '/QuanLy/Employees', icon: <Users size={20} />, label: 'Quản lý nhân sự' },
     { path: '/GiamDoc/contracts', icon: <FileText size={20} />, label: 'Hợp đồng' },
-    { path: '/GiamDoc/branches', icon: <MapPin size={20} />, label: 'Chi nhánh' },
     { path: '/GiamDoc/positions', icon: <Briefcase size={20} />, label: 'Chức vụ' },
     { path: '/GiamDoc/approvals', icon: <CheckSquare size={20} />, label: 'Phê duyệt' },
   ];

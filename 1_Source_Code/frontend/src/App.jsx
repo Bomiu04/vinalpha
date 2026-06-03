@@ -21,19 +21,9 @@ import AdminAttendance from './pages/Admin/AdminAttendance';
 // 3. GIÁM ĐỐC (DIRECTOR) PAGES
 // ==========================================
 import GiamDocDashboard from './pages/GiamDoc/Dashboard';
-import Departments from './pages/GiamDoc/Departments';
 import Contracts from './pages/GiamDoc/Contracts';
-import Branches from './pages/GiamDoc/Branches';
 import Positions from './pages/GiamDoc/Positions';
 import Approvals from './pages/GiamDoc/ApprovalsDirector';
-import DepartmentDetail from './pages/GiamDoc/DepartmentDetail';
-import DepartmentCreate from "./pages/GiamDoc/DepartmentCreate";
-import EditDepartment from "./pages/GiamDoc/EditDepartment";
-import DeleteDepartment from "./pages/GiamDoc/DeleteDepartment";
-import BranchesCreate from "./pages/GiamDoc/BranchesCreate";
-import BranchesDetail from "./pages/GiamDoc/BranchesDetail";
-import BranchesEdit from "./pages/GiamDoc/BranchesEdit";
-import BranchesDelete from "./pages/GiamDoc/BranchesDelete";
 
 // ==========================================
 // 4. QUẢN LÝ (MANAGER) PAGES
@@ -53,9 +43,6 @@ import RecommendationList from './pages/QuanLy/AI/RecommendationList';
 // ==========================================
 import SalaryStats from './pages/QuanLy/statistics/SalaryStats';
 import AttendanceStats from './pages/QuanLy/statistics/AttendanceStats';
-import RequestsStats from './pages/QuanLy/statistics/RequestsStats';
-import ContractsStats from './pages/QuanLy/statistics/ContractsStats';
-import ChangesStats from './pages/QuanLy/statistics/ChangesStats';
 
 // ===== NHÂN VIÊN =====
 import EmployeeDashboard from './pages/NhanVien/Dashboard';
@@ -136,16 +123,6 @@ function App() {
 
           {/* --- ROUTES GIÁM ĐỐC --- */}
           <Route path="/GiamDoc/dashboard" element={<GiamDocDashboard />} />
-          <Route path="/GiamDoc/departments" element={<Departments />} />
-          <Route path="/GiamDoc/departments/create" element={<DepartmentCreate />} />
-          <Route path="/GiamDoc/departments/edit/:id" element={<EditDepartment />} />
-          <Route path="/GiamDoc/departments/delete/:id" element={<DeleteDepartment />} />
-          <Route path="/GiamDoc/departments/:id" element={<DepartmentDetail />} />
-          <Route path="/GiamDoc/branches" element={<Branches />} />
-          <Route path="/GiamDoc/branches/create" element={<BranchesCreate />} />
-          <Route path="/GiamDoc/branches/edit/:id" element={<BranchesEdit />} />
-          <Route path="/GiamDoc/branches/delete/:id" element={<BranchesDelete />} />
-          <Route path="/GiamDoc/branches/:id" element={<BranchesDetail />} />
           <Route path="/GiamDoc/contracts" element={<Contracts />} />
           <Route path="/GiamDoc/positions" element={<Positions />} />
           <Route path="/GiamDoc/approvals" element={<Approvals />} />
@@ -160,11 +137,8 @@ function App() {
           <Route path="/QuanLy/AI/recommendations" element={<RecommendationList />} />
           <Route path="/QuanLy/notifications" element={<NotificationPage />} />
           <Route path="/QuanLy/statistics">
-              <Route path="salary" element={<SalaryStats />} />
-              <Route path="attendance" element={<AttendanceStats />} />
-              <Route path="requests" element={<RequestsStats />} />
-              <Route path="contracts" element={<ContractsStats />} />
-          <Route path="changes" element={<ChangesStats />} />
+            <Route path="attendance" element={<AttendanceStats />} />
+            <Route path="salary" element={<SalaryStats />} />
           </Route>
           <Route path="/QuanLy/AI/AITurnoverDashboard" element={<AITurnoverDashboard />} />
 
